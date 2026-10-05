@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790973593248,
+      "tag": "0000_bigint_capabilities_measurable_outcomes",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790978702700,
+      "tag": "0001_nullable_statement",
+      "breakpoints": true
+    }
+  ]
+}

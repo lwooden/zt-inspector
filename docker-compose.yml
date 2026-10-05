@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: zt
+      POSTGRES_PASSWORD: zt
+      POSTGRES_DB: zt_dashboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - zt_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zt -d zt_dashboard"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  zt_pg:

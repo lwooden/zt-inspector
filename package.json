@@ -1,26 +1,48 @@
 {
-  "name": "zt-dashboard",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.3.8",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.8",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+	"name": "zt-inspector",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "eslint",
+		"db:up": "docker compose up -d",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:seed": "tsx db/seed.ts"
+	},
+	"dependencies": {
+		"@ai-sdk/amazon-bedrock": "^5.0.105",
+		"@ai-sdk/google": "^4.0.87",
+		"@ai-sdk/mcp": "^2.0.66",
+		"@ai-sdk/react": "^4.0.130",
+		"@modelcontextprotocol/server": "^2.3.0",
+		"ai": "^7.0.127",
+		"drizzle-orm": "^0.45.3",
+		"lucide-react": "^1.50.0",
+		"mcp-handler": "^2.2.0",
+		"next": "16.3.8",
+		"pg": "^8.23.1",
+		"react": "19.2.8",
+		"react-dom": "19.2.8",
+		"react-markdown": "^10.1.0",
+		"recharts": "^3.10.1",
+		"sonner": "^2.0.8",
+		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"@tailwindcss/postcss": "^4",
+		"@types/node": "^20",
+		"@types/pg": "^8.23.1",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"dotenv": "^18.0.5",
+		"drizzle-kit": "^0.31.11",
+		"eslint": "^9",
+		"eslint-config-next": "16.3.8",
+		"tailwindcss": "^4",
+		"tsx": "^4.23.15",
+		"typescript": "^5"
+	}
 }
