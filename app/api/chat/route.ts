@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         "- Prefer a short intro sentence, then a bullet list.",
         "- For projects: one top-level bullet `**Name**`, then nested bullets for ITPM and division.",
         "- For posture: one top-level bullet per pillar `**Pillar name**`, then nested bullets for",
-        "  achieved level and brief basic/intermediate/advanced progress (e.g. implemented/open counts).",
+        "  achieved level and brief basic/intermediate/advanced progress (mean % vs target, met/in progress/not started).",
         "- Do not dump raw JSON. Do not use headings unless summarizing many sections.",
         "- Emphasize names with bold; keep field labels plain.",
       ].join(" "),

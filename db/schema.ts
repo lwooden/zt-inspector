@@ -14,7 +14,7 @@ export const ztLevel = pgEnum("zt_level", ["basic", "intermediate", "advanced"])
 
 export const implementationStatus = pgEnum("implementation_status", [
   "not_started",
-  "partial",
+  "in_progress",
   "implemented",
   "not_applicable",
 ]);
@@ -88,6 +88,8 @@ export const implementationStatements = pgTable(
       .references(() => measurableOutcomes.id, { onDelete: "restrict" }),
     status: implementationStatus("status").notNull(),
     statement: text("statement"),
+    currentPercentage: integer("current_percentage").notNull().default(0),
+    targetPercentage: integer("target_percentage").notNull().default(100),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

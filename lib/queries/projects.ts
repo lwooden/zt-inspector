@@ -59,6 +59,8 @@ export async function ensureProjectCatalogue(projectId: number): Promise<number>
       measurableOutcomeId: outcome.id,
       status: "not_started" as const,
       statement: null,
+      currentPercentage: 0,
+      targetPercentage: 100,
     })),
   );
 
@@ -85,6 +87,8 @@ export async function ensureCatalogueForAllProjects(
       measurableOutcomeId,
       status: "not_started" as const,
       statement: null,
+      currentPercentage: 0,
+      targetPercentage: 100,
     })),
   );
 
@@ -108,6 +112,8 @@ export async function createProjectWithCatalogue(
           measurableOutcomeId: outcome.id,
           status: "not_started" as const,
           statement: null,
+          currentPercentage: 0,
+          targetPercentage: 100,
         })),
       );
     }
@@ -134,6 +140,8 @@ export async function getProjectPosture(id: number): Promise<ProjectPosture | nu
       outcomeId: measurableOutcomes.id,
       ztLevel: measurableOutcomes.ztLevel,
       status: implementationStatements.status,
+      currentPercentage: implementationStatements.currentPercentage,
+      targetPercentage: implementationStatements.targetPercentage,
     })
     .from(pillars)
     .leftJoin(capabilities, eq(capabilities.pillarId, pillars.id))
@@ -174,6 +182,8 @@ export async function getProjectPosture(id: number): Promise<ProjectPosture | nu
       pillar.outcomes.push({
         ztLevel: row.ztLevel as ZtLevel,
         status: row.status,
+        currentPercentage: row.currentPercentage ?? 0,
+        targetPercentage: row.targetPercentage ?? 100,
       });
     }
   }
@@ -223,6 +233,8 @@ export async function getProjectPillarDetail(
       capabilityName: capabilities.name,
       status: implementationStatements.status,
       statement: implementationStatements.statement,
+      currentPercentage: implementationStatements.currentPercentage,
+      targetPercentage: implementationStatements.targetPercentage,
     })
     .from(capabilities)
     .innerJoin(measurableOutcomes, eq(measurableOutcomes.capabilityId, capabilities.id))
@@ -245,12 +257,16 @@ export async function getProjectPillarDetail(
     capabilityName: row.capabilityName,
     status: row.status,
     statement: row.statement,
+    currentPercentage: row.currentPercentage ?? 0,
+    targetPercentage: row.targetPercentage ?? 100,
   }));
 
   const summary = summarizePillar(
     outcomes.map((outcome) => ({
       ztLevel: outcome.ztLevel,
       status: outcome.status,
+      currentPercentage: outcome.currentPercentage,
+      targetPercentage: outcome.targetPercentage,
     })),
   );
 

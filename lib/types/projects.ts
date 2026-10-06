@@ -33,6 +33,8 @@ export type PillarOutcomeAssessment = {
   capabilityName: string;
   status: ImplementationStatus | null;
   statement: string | null;
+  currentPercentage: number;
+  targetPercentage: number;
 };
 
 export type ProjectPillarDetail = {

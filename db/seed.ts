@@ -302,6 +302,8 @@ async function main() {
 				measurableOutcomeId: outcome.id,
 				status: "not_started" as const,
 				statement: null,
+				currentPercentage: 0,
+				targetPercentage: 100,
 			})),
 		);
 	}

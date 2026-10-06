@@ -36,6 +36,8 @@ export async function GET(_request: Request, context: Context) {
       measurableOutcomeId: implementationStatements.measurableOutcomeId,
       status: implementationStatements.status,
       statement: implementationStatements.statement,
+      currentPercentage: implementationStatements.currentPercentage,
+      targetPercentage: implementationStatements.targetPercentage,
       createdAt: implementationStatements.createdAt,
       updatedAt: implementationStatements.updatedAt,
       outcome: {

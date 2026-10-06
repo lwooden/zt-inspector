@@ -33,7 +33,7 @@ export function TierProgressChart({ data }: TierProgressChartProps) {
 				Implementation Progress By Maturity Tier
 			</h2>
 			<p className="mt-1 text-sm text-muted">
-				Percent of applicable outcomes marked implemented at each tier (N/A
+				Mean completion vs target for applicable outcomes at each tier (N/A
 				excluded).
 			</p>
 			<div className="mt-4 h-80 w-full">

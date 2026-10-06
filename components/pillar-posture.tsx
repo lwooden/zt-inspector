@@ -50,9 +50,10 @@ export function PillarPostureList({ projectId, pillars }: PillarPostureListProps
                     key={level}
                     className="px-4 py-3 font-mono text-xs text-muted"
                   >
-                    <div>implemented {counts.implemented}</div>
-                    <div>partial {counts.partial}</div>
-                    <div>open {counts.notStarted}</div>
+                    <div>progress {Math.round(counts.progress)}%</div>
+                    <div>met {counts.met}</div>
+                    <div>in progress {counts.inProgress}</div>
+                    <div>not started {counts.notStarted}</div>
                     <div>n/a {counts.notApplicable}</div>
                   </td>
                 );

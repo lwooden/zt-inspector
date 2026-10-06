@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { upsertStatement } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
 import type { ImplementationStatus } from "@/db/schema";
+import { normalizeStatementStatus } from "@/lib/posture";
 import type { PillarOutcomeAssessment } from "@/lib/types/projects";
 
 type OutcomeStatementCardProps = {
@@ -16,10 +17,12 @@ type OutcomeStatementCardProps = {
 
 const STATUS_OPTIONS: { value: ImplementationStatus; label: string }[] = [
   { value: "not_started", label: "Not started" },
-  { value: "partial", label: "Partial" },
+  { value: "in_progress", label: "In progress" },
   { value: "implemented", label: "Implemented" },
   { value: "not_applicable", label: "Not applicable" },
 ];
+
+const CURRENT_PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, index) => index * 5);
 
 function formatStatus(status: PillarOutcomeAssessment["status"]) {
   if (status === null) return "not assessed";
@@ -39,18 +42,51 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
     outcome.status ?? "not_started",
   );
   const [statement, setStatement] = useState(outcome.statement ?? "");
+  const [currentPercentage, setCurrentPercentage] = useState(outcome.currentPercentage);
+  const [targetPercentage, setTargetPercentage] = useState(outcome.targetPercentage);
   const [pending, setPending] = useState(false);
 
-  function startEditing() {
+  const percentageDisabled = status === "not_applicable" || pending;
+
+  function resetForm() {
     setStatus(outcome.status ?? "not_started");
     setStatement(outcome.statement ?? "");
+    setCurrentPercentage(outcome.currentPercentage);
+    setTargetPercentage(outcome.targetPercentage);
+  }
+
+  function startEditing() {
+    resetForm();
     setEditing(true);
   }
 
   function cancelEditing() {
-    setStatus(outcome.status ?? "not_started");
-    setStatement(outcome.statement ?? "");
+    resetForm();
     setEditing(false);
+  }
+
+  function onStatusChange(next: ImplementationStatus) {
+    setStatus(next);
+    if (next === "implemented") {
+      setCurrentPercentage(targetPercentage);
+    } else if (next === "not_started") {
+      setCurrentPercentage(0);
+    } else if (next === "in_progress" && currentPercentage === 0) {
+      setCurrentPercentage(5);
+    }
+  }
+
+  function onCurrentPercentageChange(next: number) {
+    setCurrentPercentage(next);
+    if (status === "not_applicable") return;
+    setStatus(normalizeStatementStatus("not_started", next, targetPercentage));
+  }
+
+  function onTargetPercentageChange(next: number) {
+    const clamped = Math.max(1, Math.min(100, next));
+    setTargetPercentage(clamped);
+    if (status === "not_applicable") return;
+    setStatus(normalizeStatementStatus(status, currentPercentage, clamped));
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -61,6 +97,8 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
       const result = await upsertStatement(projectId, outcome.id, {
         status,
         statement: trimmed === "" ? null : trimmed,
+        currentPercentage,
+        targetPercentage,
       });
 
       if (!result.ok) {
@@ -106,7 +144,7 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
 
       {editing ? (
         <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-start">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-wide text-muted">
                 Measurable outcome
@@ -126,23 +164,61 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
                 disabled={pending}
               />
             </label>
-            <label className="block text-sm md:w-44 md:shrink-0">
-              <span className="text-xs uppercase tracking-wide text-muted">Status</span>
-              <select
-                className={fieldClass}
-                value={status}
-                onChange={(event) =>
-                  setStatus(event.target.value as ImplementationStatus)
-                }
-                disabled={pending}
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex flex-col gap-3 md:w-44 md:shrink-0">
+              <label className="block text-sm">
+                <span className="text-xs uppercase tracking-wide text-muted">Status</span>
+                <select
+                  className={fieldClass}
+                  value={status}
+                  onChange={(event) =>
+                    onStatusChange(event.target.value as ImplementationStatus)
+                  }
+                  disabled={pending}
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                <span className="text-xs uppercase tracking-wide text-muted">
+                  Current %
+                </span>
+                <select
+                  className={fieldClass}
+                  value={currentPercentage}
+                  onChange={(event) =>
+                    onCurrentPercentageChange(Number(event.target.value))
+                  }
+                  disabled={percentageDisabled}
+                >
+                  {CURRENT_PERCENTAGE_OPTIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {value}%
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                <span className="text-xs uppercase tracking-wide text-muted">
+                  Target %
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={1}
+                  className={fieldClass}
+                  value={targetPercentage}
+                  onChange={(event) =>
+                    onTargetPercentageChange(Number(event.target.value))
+                  }
+                  disabled={percentageDisabled}
+                />
+              </label>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={pending}>
@@ -159,7 +235,7 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
           </div>
         </form>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-start">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-muted">
               Measurable outcome
@@ -180,10 +256,14 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
               <p className="mt-1 text-sm text-muted">No implementation statement yet</p>
             )}
           </div>
-          <div className="md:w-36 md:shrink-0 md:text-right">
+          <div className="md:w-44 md:shrink-0 md:text-right">
             <p className="text-xs uppercase tracking-wide text-muted">Status</p>
             <p className="mt-1 font-mono text-xs lowercase text-foreground">
               {formatStatus(outcome.status)}
+            </p>
+            <p className="mt-3 text-xs uppercase tracking-wide text-muted">Progress</p>
+            <p className="mt-1 font-mono text-xs text-foreground">
+              {outcome.currentPercentage}% / {outcome.targetPercentage}%
             </p>
           </div>
         </div>

@@ -41,13 +41,12 @@ export function maturityOrdinal(level: PillarPostureLevel): number {
 }
 
 export function applicableCount(counts: LevelCounts): number {
-  return counts.implemented + counts.partial + counts.notStarted;
+  return counts.met + counts.inProgress + counts.notStarted;
 }
 
-export function implementedPercent(counts: LevelCounts): number | null {
-  const applicable = applicableCount(counts);
-  if (applicable === 0) return null;
-  return (counts.implemented / applicable) * 100;
+export function tierProgressPercent(counts: LevelCounts): number | null {
+  if (applicableCount(counts) === 0) return null;
+  return counts.progress;
 }
 
 export function toMaturityChartRows(pillars: PillarPosture[]): MaturityChartRow[] {
@@ -60,7 +59,7 @@ export function toMaturityChartRows(pillars: PillarPosture[]): MaturityChartRow[
 }
 
 function tierPercent(pillar: PillarPosture, level: ZtLevel): number {
-  return implementedPercent(pillar.byLevel[level]) ?? 0;
+  return tierProgressPercent(pillar.byLevel[level]) ?? 0;
 }
 
 export function toTierProgressRows(pillars: PillarPosture[]): TierProgressChartRow[] {

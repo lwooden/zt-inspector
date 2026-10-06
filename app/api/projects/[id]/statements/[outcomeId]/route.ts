@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { measurableOutcomes, implementationStatements, projects } from "@/db/schema";
 import { jsonError, noContent, readJson, validationError } from "@/lib/http";
+import { normalizeStatementStatus } from "@/lib/posture";
 import { idSchema, upsertStatementSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -37,13 +38,21 @@ export async function PUT(request: Request, context: Context) {
   if (!project) return jsonError("Project not found", 404);
   if (!outcome) return jsonError("Measurable outcome not found", 404);
 
+  const status = normalizeStatementStatus(
+    parsed.data.status,
+    parsed.data.currentPercentage,
+    parsed.data.targetPercentage,
+  );
+
   const [saved] = await db
     .insert(implementationStatements)
     .values({
       projectId: idParsed.data,
       measurableOutcomeId: outcomeParsed.data,
-      status: parsed.data.status,
+      status,
       statement: parsed.data.statement,
+      currentPercentage: parsed.data.currentPercentage,
+      targetPercentage: parsed.data.targetPercentage,
     })
     .onConflictDoUpdate({
       target: [
@@ -51,8 +60,10 @@ export async function PUT(request: Request, context: Context) {
         implementationStatements.measurableOutcomeId,
       ],
       set: {
-        status: parsed.data.status,
+        status,
         statement: parsed.data.statement,
+        currentPercentage: parsed.data.currentPercentage,
+        targetPercentage: parsed.data.targetPercentage,
         updatedAt: new Date(),
       },
     })

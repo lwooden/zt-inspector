@@ -66,7 +66,18 @@ export const updateProjectSchema = z
     { message: "At least one field is required" },
   );
 
+export const percentageSchema = z.coerce.number().int().min(0).max(100);
+
+export const currentPercentageSchema = percentageSchema.refine(
+  (value) => value % 5 === 0,
+  { message: "currentPercentage must be a multiple of 5" },
+);
+
+export const targetPercentageSchema = z.coerce.number().int().min(1).max(100);
+
 export const upsertStatementSchema = z.object({
   status: implementationStatusSchema,
   statement: z.string().nullable(),
+  currentPercentage: currentPercentageSchema,
+  targetPercentage: targetPercentageSchema,
 });

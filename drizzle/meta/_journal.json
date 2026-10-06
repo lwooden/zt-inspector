@@ -15,6 +15,20 @@
       "when": 1790978702700,
       "tag": "0001_nullable_statement",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791228000000,
+      "tag": "0002_percentage_posture",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791230400000,
+      "tag": "0003_in_progress_status",
+      "breakpoints": true
     }
   ]
 }
