@@ -40,7 +40,7 @@ export function registerMcpTools(server: McpServer) {
     {
       title: "Get Project Posture",
       description:
-        "Get high-level Zero Trust pillar posture for a project: achieved maturity level and status counts (implemented, partial, open, n/a) for basic, intermediate, and advanced tiers across all seven pillars.",
+        "Get high-level Zero Trust pillar posture for a project: achieved maturity level plus met/inProgress/notStarted/n/a counts and mean completion progress (current vs target %) for basic, intermediate, and advanced tiers across all seven pillars.",
       inputSchema: z.object({
         projectId: z.number().int().positive().describe("Project ID from listProjects"),
       }),
@@ -65,22 +65,25 @@ export function registerMcpTools(server: McpServer) {
           level: pillar.level,
           byLevel: {
             basic: {
-              implemented: pillar.byLevel.basic.implemented,
-              partial: pillar.byLevel.basic.partial,
-              open: pillar.byLevel.basic.notStarted,
+              met: pillar.byLevel.basic.met,
+              inProgress: pillar.byLevel.basic.inProgress,
+              notStarted: pillar.byLevel.basic.notStarted,
               notApplicable: pillar.byLevel.basic.notApplicable,
+              progress: pillar.byLevel.basic.progress,
             },
             intermediate: {
-              implemented: pillar.byLevel.intermediate.implemented,
-              partial: pillar.byLevel.intermediate.partial,
-              open: pillar.byLevel.intermediate.notStarted,
+              met: pillar.byLevel.intermediate.met,
+              inProgress: pillar.byLevel.intermediate.inProgress,
+              notStarted: pillar.byLevel.intermediate.notStarted,
               notApplicable: pillar.byLevel.intermediate.notApplicable,
+              progress: pillar.byLevel.intermediate.progress,
             },
             advanced: {
-              implemented: pillar.byLevel.advanced.implemented,
-              partial: pillar.byLevel.advanced.partial,
-              open: pillar.byLevel.advanced.notStarted,
+              met: pillar.byLevel.advanced.met,
+              inProgress: pillar.byLevel.advanced.inProgress,
+              notStarted: pillar.byLevel.advanced.notStarted,
               notApplicable: pillar.byLevel.advanced.notApplicable,
+              progress: pillar.byLevel.advanced.progress,
             },
           },
         })),
