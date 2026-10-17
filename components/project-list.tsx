@@ -21,6 +21,7 @@ export function ProjectList({ projects }: ProjectListProps) {
         <thead className="border-b border-border bg-background/80 text-xs uppercase tracking-wide text-muted">
           <tr>
             <th className="px-4 py-3 font-medium">Name</th>
+            <th className="px-4 py-3 font-medium">Environment</th>
             <th className="px-4 py-3 font-medium">Government ITPM</th>
             <th className="px-4 py-3 font-medium">Owning division</th>
             <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -37,6 +38,7 @@ export function ProjectList({ projects }: ProjectListProps) {
                   {project.name}
                 </Link>
               </td>
+              <td className="px-4 py-3 text-foreground">{project.environmentName}</td>
               <td className="px-4 py-3 text-foreground">{project.governmentItpm}</td>
               <td className="px-4 py-3 text-foreground">{project.divisionOwner}</td>
               <td className="px-4 py-3">

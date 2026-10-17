@@ -4,15 +4,18 @@ import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { upsertStatement } from "@/app/actions/projects";
+import { revertStatement, upsertStatement } from "@/app/actions/projects";
+import { upsertEnvironmentStatement } from "@/app/actions/environments";
 import { Button } from "@/components/ui/button";
 import type { ImplementationStatus } from "@/db/schema";
 import { normalizeStatementStatus } from "@/lib/posture";
 import type { PillarOutcomeAssessment } from "@/lib/types/projects";
 
 type OutcomeStatementCardProps = {
-  projectId: number;
   outcome: PillarOutcomeAssessment;
+  projectId?: number;
+  environmentId?: number;
+  environmentName?: string;
 };
 
 const STATUS_OPTIONS: { value: ImplementationStatus; label: string }[] = [
@@ -35,7 +38,12 @@ const fieldClass =
 const iconButtonClass =
   "inline-flex size-8 items-center justify-center border border-transparent text-foreground transition-colors hover:border-border hover:bg-background hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
-export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCardProps) {
+export function OutcomeStatementCard({
+  projectId,
+  environmentId,
+  environmentName,
+  outcome,
+}: OutcomeStatementCardProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState<ImplementationStatus>(
@@ -94,12 +102,16 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
     setPending(true);
     try {
       const trimmed = statement.trim();
-      const result = await upsertStatement(projectId, outcome.id, {
+      const input = {
         status,
         statement: trimmed === "" ? null : trimmed,
         currentPercentage,
         targetPercentage,
-      });
+      };
+      const result =
+        projectId != null
+          ? await upsertStatement(projectId, outcome.id, input)
+          : await upsertEnvironmentStatement(environmentId ?? "", outcome.id, input);
 
       if (!result.ok) {
         toast.error(result.error);
@@ -116,6 +128,32 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
     }
   }
 
+  async function onRevert() {
+    if (projectId == null) return;
+    setPending(true);
+    try {
+      const result = await revertStatement(projectId, outcome.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Reverted to environment");
+      setEditing(false);
+      router.refresh();
+    } catch {
+      toast.error("Failed to revert statement");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const custodyLabel =
+    projectId == null
+      ? null
+      : outcome.source === "project"
+        ? "Project override"
+        : `Inherited from ${environmentName ?? "environment"}`;
+
   return (
     <li className="border border-border bg-surface px-4 py-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -124,6 +162,9 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
           <p className="mt-0.5 font-mono text-xs text-muted">
             {outcome.capabilityCode} - {outcome.capabilityName}
           </p>
+          {custodyLabel ? (
+            <p className="mt-1 text-xs text-muted">{custodyLabel}</p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-block border border-border bg-background px-2 py-0.5 font-mono text-xs lowercase text-foreground">
@@ -232,6 +273,11 @@ export function OutcomeStatementCard({ projectId, outcome }: OutcomeStatementCar
             >
               Cancel
             </Button>
+            {projectId != null && outcome.source === "project" ? (
+              <Button type="button" variant="secondary" disabled={pending} onClick={onRevert}>
+                Use environment
+              </Button>
+            ) : null}
           </div>
         </form>
       ) : (
