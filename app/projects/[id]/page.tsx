@@ -26,7 +26,18 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </Link>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{project.name}</h1>
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+          <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="border border-border bg-surface px-4 py-3">
+              <dt className="text-xs uppercase tracking-wide text-muted">Environment</dt>
+              <dd className="mt-1 text-sm text-foreground">
+                <Link
+                  href={`/environments/${project.environmentId}`}
+                  className="text-accent underline-offset-2 hover:underline"
+                >
+                  {project.environmentName}
+                </Link>
+              </dd>
+            </div>
             <div className="border border-border bg-surface px-4 py-3">
               <dt className="text-xs uppercase tracking-wide text-muted">Government ITPM</dt>
               <dd className="mt-1 text-sm text-foreground">{project.governmentItpm}</dd>
@@ -46,7 +57,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             Read-only summary of assessed desired outcomes by pillar and maturity level.
           </p>
         </div>
-        <PillarPostureList projectId={project.id} pillars={posture.pillars} />
+        <PillarPostureList hrefBase={`/projects/${project.id}`} pillars={posture.pillars} />
       </section>
     </div>
   );
