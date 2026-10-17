@@ -19,7 +19,7 @@ export function registerMcpTools(server: McpServer) {
     {
       title: "List Projects",
       description:
-        "List all Zero Trust assessment projects with name, government ITPM, and owning division.",
+        "List all Zero Trust assessment projects with name, government ITPM, owning division, and environment.",
       inputSchema: z.object({}),
     },
     async () => {
@@ -30,6 +30,8 @@ export function registerMcpTools(server: McpServer) {
           name: project.name,
           governmentItpm: project.governmentItpm,
           divisionOwner: project.divisionOwner,
+          environmentId: project.environmentId,
+          environmentName: project.environmentName,
         })),
       );
     },
