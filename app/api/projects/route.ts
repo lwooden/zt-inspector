@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { readJson, validationError } from "@/lib/http";
-import { createProjectWithCatalogue, listProjects } from "@/lib/queries/projects";
+import { jsonError, readJson, validationError } from "@/lib/http";
+import { createProject, listProjects } from "@/lib/queries/projects";
 import { createProjectSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
   const parsed = createProjectSchema.safeParse(await readJson(request));
   if (!parsed.success) return validationError(parsed.error);
 
-  const created = await createProjectWithCatalogue(parsed.data);
+  const created = await createProject(parsed.data);
+  if (!created) return jsonError("Environment not found", 404);
   return NextResponse.json(created, { status: 201 });
 }

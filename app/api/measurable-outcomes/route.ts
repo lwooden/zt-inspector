@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { measurableOutcomes } from "@/db/schema";
 import { jsonError, pgErrorCode, readJson, validationError } from "@/lib/http";
-import { ensureCatalogueForAllProjects } from "@/lib/queries/projects";
+import { ensureCatalogueForAllEnvironments } from "@/lib/queries/environments";
 import { createMeasurableOutcomeSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   try {
     const [created] = await db.insert(measurableOutcomes).values(parsed.data).returning();
-    await ensureCatalogueForAllProjects(created.id);
+    await ensureCatalogueForAllEnvironments(created.id);
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     if (pgErrorCode(error) === "23505") {
