@@ -3,15 +3,22 @@ import type { PillarOutcomeAssessment } from "@/lib/types/projects";
 import { ZT_LEVELS } from "@/lib/posture";
 
 type PillarLevelSectionsProps = {
-  projectId: number;
   outcomes: PillarOutcomeAssessment[];
+  projectId?: number;
+  environmentId?: number;
+  environmentName?: string;
 };
 
 function formatLevelLabel(level: string) {
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
 
-export function PillarLevelSections({ projectId, outcomes }: PillarLevelSectionsProps) {
+export function PillarLevelSections({
+  projectId,
+  environmentId,
+  environmentName,
+  outcomes,
+}: PillarLevelSectionsProps) {
   return (
     <div className="flex flex-col gap-8">
       {ZT_LEVELS.map((level) => {
@@ -33,6 +40,8 @@ export function PillarLevelSections({ projectId, outcomes }: PillarLevelSections
                   <OutcomeStatementCard
                     key={outcome.id}
                     projectId={projectId}
+                    environmentId={environmentId}
+                    environmentName={environmentName}
                     outcome={outcome}
                   />
                 ))}

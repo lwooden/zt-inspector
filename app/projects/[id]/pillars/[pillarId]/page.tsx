@@ -47,7 +47,11 @@ export default async function ProjectPillarPage({ params }: PillarPageProps) {
         </div>
       </div>
 
-      <PillarLevelSections projectId={project.id} outcomes={detail.outcomes} />
+      <PillarLevelSections
+        projectId={project.id}
+        environmentName={project.environmentName}
+        outcomes={detail.outcomes}
+      />
     </div>
   );
 }

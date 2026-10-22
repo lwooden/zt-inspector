@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { environments, projects } from "@/db/schema";
 import { jsonError, noContent, readJson, validationError } from "@/lib/http";
 import { getProject } from "@/lib/queries/projects";
 import { idSchema, updateProjectSchema } from "@/lib/validators";
@@ -29,13 +29,24 @@ export async function PATCH(request: Request, context: Context) {
   const parsed = updateProjectSchema.safeParse(await readJson(request));
   if (!parsed.success) return validationError(parsed.error);
 
+  if (parsed.data.environmentId !== undefined) {
+    const environment = await db.query.environments.findFirst({
+      where: eq(environments.id, parsed.data.environmentId),
+      columns: { id: true },
+    });
+    if (!environment) return jsonError("Environment not found", 404);
+  }
+
   const [updated] = await db
     .update(projects)
     .set({ ...parsed.data, updatedAt: new Date() })
     .where(eq(projects.id, id))
-    .returning();
+    .returning({ id: projects.id });
   if (!updated) return jsonError("Project not found", 404);
-  return NextResponse.json(updated);
+
+  const project = await getProject(id);
+  if (!project) return jsonError("Project not found", 404);
+  return NextResponse.json(project);
 }
 
 export async function DELETE(_request: Request, context: Context) {

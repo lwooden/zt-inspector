@@ -8,6 +8,7 @@ export type CreateProjectInput = {
   name: string;
   governmentItpm: string;
   divisionOwner: string;
+  environmentId: number;
 };
 
 export type UpdateProjectInput = CreateProjectInput;
@@ -21,7 +22,8 @@ export type UpsertStatementInput = {
 
 export type ImplementationStatementRow = {
   id: number;
-  projectId: number;
+  projectId: number | null;
+  environmentId: number | null;
   measurableOutcomeId: number;
   status: ImplementationStatus;
   statement: string | null;
@@ -153,5 +155,23 @@ export async function upsertStatement(
       return { ok: false, error: error.message };
     }
     return { ok: false, error: "Failed to update statement" };
+  }
+}
+
+export async function revertStatement(
+  projectId: number | string,
+  measurableOutcomeId: number | string,
+): Promise<DeleteProjectResult> {
+  try {
+    await apiFetch<null>(
+      `/api/projects/${projectId}/statements/${measurableOutcomeId}`,
+      { method: "DELETE" },
+    );
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Failed to revert statement" };
   }
 }

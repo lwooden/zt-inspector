@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { fetchEnvironments } from "@/app/actions/environments";
 import { fetchProject } from "@/app/actions/projects";
 import { ProjectEditForm } from "@/components/project-edit-form";
 
@@ -11,7 +12,7 @@ type EditProjectPageProps = {
 
 export default async function EditProjectPage({ params }: EditProjectPageProps) {
   const { id } = await params;
-  const project = await fetchProject(id);
+  const [project, environments] = await Promise.all([fetchProject(id), fetchEnvironments()]);
   if (!project) notFound();
 
   return (
@@ -32,7 +33,7 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
           </p>
         </div>
       </div>
-      <ProjectEditForm project={project} />
+      <ProjectEditForm project={project} environments={environments} />
     </div>
   );
 }

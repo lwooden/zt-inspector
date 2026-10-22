@@ -5,22 +5,26 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { updateProject } from "@/app/actions/projects";
 import { Button } from "@/components/ui/button";
+import type { Environment } from "@/lib/types/environments";
 import type { Project } from "@/lib/types/projects";
 
 type ProjectEditFormProps = {
   project: Project;
+  environments: Environment[];
 };
 
-export function ProjectEditForm({ project }: ProjectEditFormProps) {
+export function ProjectEditForm({ project, environments }: ProjectEditFormProps) {
   const router = useRouter();
   const [name, setName] = useState(project.name);
   const [governmentItpm, setGovernmentItpm] = useState(project.governmentItpm);
   const [divisionOwner, setDivisionOwner] = useState(project.divisionOwner);
+  const [environmentId, setEnvironmentId] = useState(String(project.environmentId));
   const [pending, setPending] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string;
     governmentItpm?: string;
     divisionOwner?: string;
+    environmentId?: string;
   }>({});
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -30,6 +34,7 @@ export function ProjectEditForm({ project }: ProjectEditFormProps) {
     if (!name.trim()) nextErrors.name = "Name is required";
     if (!governmentItpm.trim()) nextErrors.governmentItpm = "Government ITPM is required";
     if (!divisionOwner.trim()) nextErrors.divisionOwner = "Owning division is required";
+    if (!environmentId) nextErrors.environmentId = "Environment is required";
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -39,6 +44,7 @@ export function ProjectEditForm({ project }: ProjectEditFormProps) {
         name: name.trim(),
         governmentItpm: governmentItpm.trim(),
         divisionOwner: divisionOwner.trim(),
+        environmentId: Number(environmentId),
       });
 
       if (!result.ok) {
@@ -62,6 +68,27 @@ export function ProjectEditForm({ project }: ProjectEditFormProps) {
   return (
     <form onSubmit={onSubmit} className="border border-border bg-surface px-5 py-5">
       <div className="flex flex-col gap-4">
+        <label className="block text-sm">
+          <span className="font-medium text-foreground">Environment</span>
+          <select
+            className={inputClass}
+            value={environmentId}
+            onChange={(event) => setEnvironmentId(event.target.value)}
+            disabled={pending}
+          >
+            {environments.map((environment) => (
+              <option key={environment.id} value={environment.id}>
+                {environment.name}
+              </option>
+            ))}
+          </select>
+          {fieldErrors.environmentId ? (
+            <span className="mt-1 block text-xs text-red-700">
+              {fieldErrors.environmentId}
+            </span>
+          ) : null}
+        </label>
+
         <label className="block text-sm">
           <span className="font-medium text-foreground">Name</span>
           <input

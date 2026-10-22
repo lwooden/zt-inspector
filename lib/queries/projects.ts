@@ -1,15 +1,21 @@
-import { and, asc, eq, notInArray } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import {
   capabilities,
+  environments,
   measurableOutcomes,
   implementationStatements,
   pillars,
   projects,
-  type ZtLevel,
+  type ImplementationStatus,
 } from "@/db/schema";
-import { summarizePillar, type OutcomeAssessment } from "@/lib/posture";
-import type { Project, ProjectPillarDetail, ProjectPosture } from "@/lib/types/projects";
+import { summarizePillar } from "@/lib/posture";
+import {
+  ensureEnvironmentCatalogue,
+  postureFromRows,
+} from "@/lib/queries/environments";
+import type { Project, ProjectPillarDetail, ProjectPosture, StatementSource } from "@/lib/types/projects";
 
 export type {
   Project,
@@ -23,113 +29,59 @@ export type CreateProjectInput = {
   name: string;
   governmentItpm: string;
   divisionOwner: string;
+  environmentId: number;
+};
+
+const projectColumns = {
+  id: projects.id,
+  environmentId: projects.environmentId,
+  environmentName: environments.name,
+  name: projects.name,
+  governmentItpm: projects.governmentItpm,
+  divisionOwner: projects.divisionOwner,
+  createdAt: projects.createdAt,
+  updatedAt: projects.updatedAt,
 };
 
 export async function listProjects(): Promise<Project[]> {
-  return db.select().from(projects).orderBy(asc(projects.name));
+  return db
+    .select(projectColumns)
+    .from(projects)
+    .innerJoin(environments, eq(projects.environmentId, environments.id))
+    .orderBy(asc(projects.name));
 }
 
 export async function getProject(id: number): Promise<Project | null> {
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.id, id),
-  });
+  const [project] = await db
+    .select(projectColumns)
+    .from(projects)
+    .innerJoin(environments, eq(projects.environmentId, environments.id))
+    .where(eq(projects.id, id))
+    .limit(1);
   return project ?? null;
 }
 
-export async function ensureProjectCatalogue(projectId: number): Promise<number> {
-  const existing = await db
-    .select({ measurableOutcomeId: implementationStatements.measurableOutcomeId })
-    .from(implementationStatements)
-    .where(eq(implementationStatements.projectId, projectId));
-
-  const existingIds = existing.map((row) => row.measurableOutcomeId);
-  const missingOutcomes =
-    existingIds.length === 0
-      ? await db.select({ id: measurableOutcomes.id }).from(measurableOutcomes)
-      : await db
-          .select({ id: measurableOutcomes.id })
-          .from(measurableOutcomes)
-          .where(notInArray(measurableOutcomes.id, existingIds));
-
-  if (missingOutcomes.length === 0) return 0;
-
-  await db.insert(implementationStatements).values(
-    missingOutcomes.map((outcome) => ({
-      projectId,
-      measurableOutcomeId: outcome.id,
-      status: "not_started" as const,
-      statement: null,
-      currentPercentage: 0,
-      targetPercentage: 100,
-    })),
-  );
-
-  return missingOutcomes.length;
-}
-
-export async function ensureCatalogueForAllProjects(
-  measurableOutcomeId: number,
-): Promise<number> {
-  const projectRows = await db.select({ id: projects.id }).from(projects);
-  if (projectRows.length === 0) return 0;
-
-  const alreadyLinked = await db
-    .select({ projectId: implementationStatements.projectId })
-    .from(implementationStatements)
-    .where(eq(implementationStatements.measurableOutcomeId, measurableOutcomeId));
-  const linked = new Set(alreadyLinked.map((row) => row.projectId));
-  const missingProjects = projectRows.filter((project) => !linked.has(project.id));
-  if (missingProjects.length === 0) return 0;
-
-  await db.insert(implementationStatements).values(
-    missingProjects.map((project) => ({
-      projectId: project.id,
-      measurableOutcomeId,
-      status: "not_started" as const,
-      statement: null,
-      currentPercentage: 0,
-      targetPercentage: 100,
-    })),
-  );
-
-  return missingProjects.length;
-}
-
-export async function createProjectWithCatalogue(
-  input: CreateProjectInput,
-): Promise<Project> {
-  return db.transaction(async (tx) => {
-    const [created] = await tx.insert(projects).values(input).returning();
-
-    const outcomes = await tx
-      .select({ id: measurableOutcomes.id })
-      .from(measurableOutcomes);
-
-    if (outcomes.length > 0) {
-      await tx.insert(implementationStatements).values(
-        outcomes.map((outcome) => ({
-          projectId: created.id,
-          measurableOutcomeId: outcome.id,
-          status: "not_started" as const,
-          statement: null,
-          currentPercentage: 0,
-          targetPercentage: 100,
-        })),
-      );
-    }
-
-    return created;
+export async function createProject(input: CreateProjectInput): Promise<Project | null> {
+  const environment = await db.query.environments.findFirst({
+    where: eq(environments.id, input.environmentId),
+    columns: { id: true },
   });
+  if (!environment) return null;
+
+  await ensureEnvironmentCatalogue(input.environmentId);
+
+  const [created] = await db.insert(projects).values(input).returning({ id: projects.id });
+  return getProject(created.id);
 }
 
 export async function getProjectPosture(id: number): Promise<ProjectPosture | null> {
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.id, id),
-    columns: { id: true },
-  });
+  const project = await getProject(id);
   if (!project) return null;
 
-  await ensureProjectCatalogue(id);
+  await ensureEnvironmentCatalogue(project.environmentId);
+
+  const projectStatements = alias(implementationStatements, "project_statements");
+  const environmentStatements = alias(implementationStatements, "environment_statements");
 
   const rows = await db
     .select({
@@ -139,70 +91,30 @@ export async function getProjectPosture(id: number): Promise<ProjectPosture | nu
       sortOrder: pillars.sortOrder,
       outcomeId: measurableOutcomes.id,
       ztLevel: measurableOutcomes.ztLevel,
-      status: implementationStatements.status,
-      currentPercentage: implementationStatements.currentPercentage,
-      targetPercentage: implementationStatements.targetPercentage,
+      status: sql<ImplementationStatus | null>`coalesce(${projectStatements.status}, ${environmentStatements.status})`,
+      currentPercentage: sql<number | null>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage})`,
+      targetPercentage: sql<number | null>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage})`,
     })
     .from(pillars)
     .leftJoin(capabilities, eq(capabilities.pillarId, pillars.id))
     .leftJoin(measurableOutcomes, eq(measurableOutcomes.capabilityId, capabilities.id))
     .leftJoin(
-      implementationStatements,
+      projectStatements,
       and(
-        eq(implementationStatements.measurableOutcomeId, measurableOutcomes.id),
-        eq(implementationStatements.projectId, id),
+        eq(projectStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(projectStatements.projectId, id),
+      ),
+    )
+    .leftJoin(
+      environmentStatements,
+      and(
+        eq(environmentStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(environmentStatements.environmentId, project.environmentId),
       ),
     )
     .orderBy(asc(pillars.sortOrder));
 
-  const grouped = new Map<
-    number,
-    {
-      id: number;
-      code: string;
-      name: string;
-      sortOrder: number;
-      outcomes: OutcomeAssessment[];
-    }
-  >();
-
-  for (const row of rows) {
-    let pillar = grouped.get(row.pillarId);
-    if (!pillar) {
-      pillar = {
-        id: row.pillarId,
-        code: row.code,
-        name: row.name,
-        sortOrder: row.sortOrder,
-        outcomes: [],
-      };
-      grouped.set(row.pillarId, pillar);
-    }
-    if (row.outcomeId && row.ztLevel) {
-      pillar.outcomes.push({
-        ztLevel: row.ztLevel as ZtLevel,
-        status: row.status,
-        currentPercentage: row.currentPercentage ?? 0,
-        targetPercentage: row.targetPercentage ?? 100,
-      });
-    }
-  }
-
-  const posture = [...grouped.values()]
-    .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map((pillar) => {
-      const summary = summarizePillar(pillar.outcomes);
-      return {
-        id: pillar.id,
-        code: pillar.code,
-        name: pillar.name,
-        sortOrder: pillar.sortOrder,
-        level: summary.level,
-        byLevel: summary.byLevel,
-      };
-    });
-
-  return { projectId: id, pillars: posture };
+  return { projectId: id, pillars: postureFromRows(rows) };
 }
 
 export async function getProjectPillarDetail(
@@ -210,10 +122,7 @@ export async function getProjectPillarDetail(
   pillarId: number,
 ): Promise<ProjectPillarDetail | null> {
   const [project, pillar] = await Promise.all([
-    db.query.projects.findFirst({
-      where: eq(projects.id, projectId),
-      columns: { id: true },
-    }),
+    getProject(projectId),
     db.query.pillars.findFirst({
       where: eq(pillars.id, pillarId),
     }),
@@ -221,7 +130,10 @@ export async function getProjectPillarDetail(
 
   if (!project || !pillar) return null;
 
-  await ensureProjectCatalogue(projectId);
+  await ensureEnvironmentCatalogue(project.environmentId);
+
+  const projectStatements = alias(implementationStatements, "project_statements");
+  const environmentStatements = alias(implementationStatements, "environment_statements");
 
   const rows = await db
     .select({
@@ -231,18 +143,26 @@ export async function getProjectPillarDetail(
       ztLevel: measurableOutcomes.ztLevel,
       capabilityCode: capabilities.code,
       capabilityName: capabilities.name,
-      status: implementationStatements.status,
-      statement: implementationStatements.statement,
-      currentPercentage: implementationStatements.currentPercentage,
-      targetPercentage: implementationStatements.targetPercentage,
+      status: sql<ImplementationStatus | null>`coalesce(${projectStatements.status}, ${environmentStatements.status})`,
+      statement: sql<string | null>`coalesce(${projectStatements.statement}, ${environmentStatements.statement})`,
+      currentPercentage: sql<number | null>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage})`,
+      targetPercentage: sql<number | null>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage})`,
+      source: sql<StatementSource>`case when ${projectStatements.id} is not null then 'project' else 'environment' end`,
     })
     .from(capabilities)
     .innerJoin(measurableOutcomes, eq(measurableOutcomes.capabilityId, capabilities.id))
     .leftJoin(
-      implementationStatements,
+      projectStatements,
       and(
-        eq(implementationStatements.measurableOutcomeId, measurableOutcomes.id),
-        eq(implementationStatements.projectId, projectId),
+        eq(projectStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(projectStatements.projectId, projectId),
+      ),
+    )
+    .leftJoin(
+      environmentStatements,
+      and(
+        eq(environmentStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(environmentStatements.environmentId, project.environmentId),
       ),
     )
     .where(eq(capabilities.pillarId, pillarId))
@@ -252,13 +172,14 @@ export async function getProjectPillarDetail(
     id: row.outcomeId,
     code: row.outcomeCode,
     definition: row.definition,
-    ztLevel: row.ztLevel as ZtLevel,
+    ztLevel: row.ztLevel,
     capabilityCode: row.capabilityCode,
     capabilityName: row.capabilityName,
     status: row.status,
     statement: row.statement,
     currentPercentage: row.currentPercentage ?? 0,
     targetPercentage: row.targetPercentage ?? 100,
+    source: row.source,
   }));
 
   const summary = summarizePillar(

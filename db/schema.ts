@@ -1,6 +1,7 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   bigint,
+  check,
   index,
   integer,
   pgEnum,
@@ -67,22 +68,41 @@ export const measurableOutcomes = pgTable(
   ],
 );
 
-export const projects = pgTable("projects", {
+export const environments = pgTable("environments", {
   id: id(),
-  name: text("name").notNull(),
-  governmentItpm: text("government_itpm").notNull(),
-  divisionOwner: text("division_owner").notNull(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const projects = pgTable(
+  "projects",
+  {
+    id: id(),
+    environmentId: bigint("environment_id", { mode: "number" })
+      .notNull()
+      .references(() => environments.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    governmentItpm: text("government_itpm").notNull(),
+    divisionOwner: text("division_owner").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("projects_environment_id_idx").on(table.environmentId)],
+);
 
 export const implementationStatements = pgTable(
   "implementation_statements",
   {
     id: id(),
-    projectId: bigint("project_id", { mode: "number" })
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+    projectId: bigint("project_id", { mode: "number" }).references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    environmentId: bigint("environment_id", { mode: "number" }).references(
+      () => environments.id,
+      { onDelete: "cascade" },
+    ),
     measurableOutcomeId: bigint("measurable_outcome_id", { mode: "number" })
       .notNull()
       .references(() => measurableOutcomes.id, { onDelete: "restrict" }),
@@ -98,7 +118,16 @@ export const implementationStatements = pgTable(
       table.projectId,
       table.measurableOutcomeId,
     ),
+    uniqueIndex("implementation_statements_environment_outcome_unique").on(
+      table.environmentId,
+      table.measurableOutcomeId,
+    ),
     index("implementation_statements_outcome_id_idx").on(table.measurableOutcomeId),
+    index("implementation_statements_environment_id_idx").on(table.environmentId),
+    check(
+      "implementation_statements_one_owner_check",
+      sql`num_nonnulls(${table.projectId}, ${table.environmentId}) = 1`,
+    ),
   ],
 );
 
@@ -122,7 +151,16 @@ export const measurableOutcomesRelations = relations(measurableOutcomes, ({ one,
   statements: many(implementationStatements),
 }));
 
-export const projectsRelations = relations(projects, ({ many }) => ({
+export const environmentsRelations = relations(environments, ({ many }) => ({
+  projects: many(projects),
+  statements: many(implementationStatements),
+}));
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  environment: one(environments, {
+    fields: [projects.environmentId],
+    references: [environments.id],
+  }),
   statements: many(implementationStatements),
 }));
 
@@ -132,6 +170,10 @@ export const implementationStatementsRelations = relations(
     project: one(projects, {
       fields: [implementationStatements.projectId],
       references: [projects.id],
+    }),
+    environment: one(environments, {
+      fields: [implementationStatements.environmentId],
+      references: [environments.id],
     }),
     outcome: one(measurableOutcomes, {
       fields: [implementationStatements.measurableOutcomeId],

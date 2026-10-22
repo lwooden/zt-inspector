@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import {
 	capabilities,
 	measurableOutcomes,
+	environments,
 	implementationStatements,
 	pillars,
 	projects,
@@ -112,6 +113,8 @@ const CAPABILITIES_BY_PILLAR: Record<string, readonly CapabilitySeed[]> = {
 	],
 };
 
+const SEEDED_ENVIRONMENTS = ["A-LAN", "R2D2E", "C-LAN", "DICE"] as const;
+
 const SAMPLE_PROJECT = {
 	name: "Low Cool App",
 	governmentItpm: "Lowell Wooden",
@@ -173,6 +176,7 @@ async function main() {
 			pillars,
 			capabilities,
 			measurableOutcomes,
+			environments,
 			projects,
 			implementationStatements,
 		},
@@ -271,45 +275,69 @@ async function main() {
 	}
 	console.log(`Seeded ${outcomeCount} measurable outcomes`);
 
+	const outcomeRows = await db
+		.select({ id: measurableOutcomes.id })
+		.from(measurableOutcomes);
+
+	const environmentIds = new Map<string, number>();
+	for (const name of SEEDED_ENVIRONMENTS) {
+		const existing = await db.query.environments.findFirst({
+			where: eq(environments.name, name),
+		});
+		const environment =
+			existing ??
+			(
+				await db.insert(environments).values({ name, description: "" }).returning()
+			)[0];
+		environmentIds.set(name, environment.id);
+
+		if (outcomeRows.length === 0) continue;
+		await db
+			.insert(implementationStatements)
+			.values(
+				outcomeRows.map((outcome) => ({
+					environmentId: environment.id,
+					measurableOutcomeId: outcome.id,
+					status: "not_started" as const,
+					statement: null,
+					currentPercentage: 0,
+					targetPercentage: 100,
+				})),
+			)
+			.onConflictDoNothing({
+				target: [
+					implementationStatements.environmentId,
+					implementationStatements.measurableOutcomeId,
+				],
+			});
+	}
+
+	const diceId = environmentIds.get("DICE");
+	if (!diceId) throw new Error("DICE environment was not seeded");
+
 	const existingProject = await db.query.projects.findFirst({
 		where: eq(projects.name, SAMPLE_PROJECT.name),
 	});
 
-	let project;
 	if (existingProject) {
-		const [updated] = await db
+		await db
 			.update(projects)
 			.set({
+				environmentId: diceId,
 				governmentItpm: SAMPLE_PROJECT.governmentItpm,
 				divisionOwner: SAMPLE_PROJECT.divisionOwner,
 				updatedAt: new Date(),
 			})
-			.where(eq(projects.id, existingProject.id))
-			.returning();
-		project = updated;
+			.where(eq(projects.id, existingProject.id));
 	} else {
-		const [created] = await db.insert(projects).values(SAMPLE_PROJECT).returning();
-		project = created;
-	}
-
-	const outcomeRows = await db
-		.select({ id: measurableOutcomes.id })
-		.from(measurableOutcomes);
-	if (outcomeRows.length > 0) {
-		await db.insert(implementationStatements).values(
-			outcomeRows.map((outcome) => ({
-				projectId: project.id,
-				measurableOutcomeId: outcome.id,
-				status: "not_started" as const,
-				statement: null,
-				currentPercentage: 0,
-				targetPercentage: 100,
-			})),
-		);
+		await db.insert(projects).values({
+			...SAMPLE_PROJECT,
+			environmentId: diceId,
+		});
 	}
 
 	console.log(
-		`Seeded project "${project.name}" with ${outcomeRows.length} not_started statements`,
+		`Seeded environments ${SEEDED_ENVIRONMENTS.join(", ")} and project "${SAMPLE_PROJECT.name}" on DICE`,
 	);
 
 	await pool.end();

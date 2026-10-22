@@ -3,7 +3,7 @@ import type { PillarPosture } from "@/lib/types/projects";
 import { ZT_LEVELS } from "@/lib/posture";
 
 type PillarPostureListProps = {
-  projectId: number | string;
+  hrefBase: string;
   pillars: PillarPosture[];
 };
 
@@ -11,7 +11,7 @@ function formatLevel(level: string) {
   return level.replaceAll("_", " ");
 }
 
-export function PillarPostureList({ projectId, pillars }: PillarPostureListProps) {
+export function PillarPostureList({ hrefBase, pillars }: PillarPostureListProps) {
   return (
     <div className="overflow-x-auto border border-border bg-surface">
       <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
@@ -32,7 +32,7 @@ export function PillarPostureList({ projectId, pillars }: PillarPostureListProps
             >
               <td className="px-4 py-3">
                 <Link
-                  href={`/projects/${projectId}/pillars/${pillar.id}`}
+                  href={`${hrefBase}/pillars/${pillar.id}`}
                   className="font-medium text-accent underline-offset-2 hover:underline"
                 >
                   {pillar.name}

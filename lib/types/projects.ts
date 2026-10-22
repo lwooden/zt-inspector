@@ -1,8 +1,12 @@
 import type { LevelCounts, PillarPostureLevel } from "@/lib/posture";
 import type { ImplementationStatus, ZtLevel } from "@/db/schema";
 
+export type StatementSource = "project" | "environment";
+
 export type Project = {
   id: number;
+  environmentId: number;
+  environmentName: string;
   name: string;
   governmentItpm: string;
   divisionOwner: string;
@@ -35,6 +39,7 @@ export type PillarOutcomeAssessment = {
   statement: string | null;
   currentPercentage: number;
   targetPercentage: number;
+  source: StatementSource;
 };
 
 export type ProjectPillarDetail = {

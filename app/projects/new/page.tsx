@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { fetchEnvironments } from "@/app/actions/environments";
 import { ProjectCreateForm } from "@/components/project-create-form";
 
-export default function NewProjectPage() {
+export const dynamic = "force-dynamic";
+
+export default async function NewProjectPage() {
+  const environments = await fetchEnvironments();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
@@ -16,11 +20,12 @@ export default function NewProjectPage() {
             Add project
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Create a system record. Measurable outcomes will start as not started.
+            Create a system record in an environment. Outcomes inherit that environment
+            until the project overrides them.
           </p>
         </div>
       </div>
-      <ProjectCreateForm />
+      <ProjectCreateForm environments={environments} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/http";
-import { ensureProjectCatalogue, getProject } from "@/lib/queries/projects";
+import { ensureEnvironmentCatalogue } from "@/lib/queries/environments";
+import { getProject } from "@/lib/queries/projects";
 import { idSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,10 @@ export async function POST(_request: Request, context: Context) {
   const project = await getProject(idParsed.data);
   if (!project) return jsonError("Project not found", 404);
 
-  const inserted = await ensureProjectCatalogue(idParsed.data);
-  return NextResponse.json({ projectId: idParsed.data, inserted });
+  const inserted = await ensureEnvironmentCatalogue(project.environmentId);
+  return NextResponse.json({
+    projectId: project.id,
+    environmentId: project.environmentId,
+    inserted,
+  });
 }

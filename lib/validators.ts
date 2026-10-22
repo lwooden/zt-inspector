@@ -46,10 +46,25 @@ export const updateMeasurableOutcomeSchema = z
     { message: "At least one field is required" },
   );
 
+export const createEnvironmentSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string().trim().default(""),
+});
+
+export const updateEnvironmentSchema = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    description: z.string().trim().optional(),
+  })
+  .refine((value) => value.name !== undefined || value.description !== undefined, {
+    message: "At least one field is required",
+  });
+
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1),
   governmentItpm: z.string().trim().min(1),
   divisionOwner: z.string().trim().min(1),
+  environmentId: idSchema,
 });
 
 export const updateProjectSchema = z
@@ -57,12 +72,14 @@ export const updateProjectSchema = z
     name: z.string().trim().min(1).optional(),
     governmentItpm: z.string().trim().min(1).optional(),
     divisionOwner: z.string().trim().min(1).optional(),
+    environmentId: idSchema.optional(),
   })
   .refine(
     (value) =>
       value.name !== undefined ||
       value.governmentItpm !== undefined ||
-      value.divisionOwner !== undefined,
+      value.divisionOwner !== undefined ||
+      value.environmentId !== undefined,
     { message: "At least one field is required" },
   );
 
