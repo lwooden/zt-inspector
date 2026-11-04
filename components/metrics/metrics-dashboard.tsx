@@ -3,16 +3,19 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { fetchProjectPosture } from "@/app/actions/projects";
+import { fetchProjectCapabilityProgress, fetchProjectPosture } from "@/app/actions/projects";
+import { CapabilityProgressChart } from "@/components/metrics/capability-progress-chart";
 import { MaturityChart } from "@/components/metrics/maturity-chart";
 import { TierProgressChart } from "@/components/metrics/tier-progress-chart";
 import { toMaturityChartRows, toTierProgressRows } from "@/lib/metrics";
+import type { ProjectCapabilityProgress } from "@/lib/queries/projects";
 import type { Project, ProjectPosture } from "@/lib/types/projects";
 
 type MetricsDashboardProps = {
 	projects: Project[];
 	initialProjectId: number | null;
 	initialPosture: ProjectPosture | null;
+	initialCapabilityProgress: ProjectCapabilityProgress | null;
 };
 
 const selectClass =
@@ -22,11 +25,14 @@ export function MetricsDashboard({
 	projects,
 	initialProjectId,
 	initialPosture,
+	initialCapabilityProgress,
 }: MetricsDashboardProps) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [projectId, setProjectId] = useState<number | null>(initialProjectId);
 	const [posture, setPosture] = useState<ProjectPosture | null>(initialPosture);
+	const [capabilityProgress, setCapabilityProgress] =
+		useState<ProjectCapabilityProgress | null>(initialCapabilityProgress);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, startTransition] = useTransition();
 
@@ -45,15 +51,21 @@ export function MetricsDashboard({
 
 		startTransition(async () => {
 			try {
-				const next = await fetchProjectPosture(id);
-				if (!next) {
+				const [nextPosture, nextProgress] = await Promise.all([
+					fetchProjectPosture(id),
+					fetchProjectCapabilityProgress(id),
+				]);
+				if (!nextPosture || !nextProgress) {
 					setPosture(null);
+					setCapabilityProgress(null);
 					setError("Posture data was not found for this project.");
 					return;
 				}
-				setPosture(next);
+				setPosture(nextPosture);
+				setCapabilityProgress(nextProgress);
 			} catch {
 				setPosture(null);
+				setCapabilityProgress(null);
 				setError("Failed to load posture for this project.");
 			}
 		});
@@ -106,6 +118,12 @@ export function MetricsDashboard({
 				<div className="flex flex-col gap-6">
 					<MaturityChart data={maturityRows} />
 					<TierProgressChart data={progressRows} />
+					{capabilityProgress ? (
+						<CapabilityProgressChart
+							key={projectId ?? "none"}
+							pillars={capabilityProgress.pillars}
+						/>
+					) : null}
 				</div>
 			) : null}
 
