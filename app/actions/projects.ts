@@ -2,6 +2,7 @@
 
 import { apiFetch, ApiError } from "@/lib/api";
 import type { ImplementationStatus } from "@/db/schema";
+import type { ProjectCapabilityProgress } from "@/lib/queries/projects";
 import type { Project, ProjectPillarDetail, ProjectPosture } from "@/lib/types/projects";
 
 export type CreateProjectInput = {
@@ -64,6 +65,19 @@ export async function fetchProjectPosture(
 ): Promise<ProjectPosture | null> {
   try {
     return await apiFetch<ProjectPosture>(`/api/projects/${id}/posture`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function fetchProjectCapabilityProgress(
+  id: number | string,
+): Promise<ProjectCapabilityProgress | null> {
+  try {
+    return await apiFetch<ProjectCapabilityProgress>(
+      `/api/projects/${id}/capability-progress`,
+    );
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;

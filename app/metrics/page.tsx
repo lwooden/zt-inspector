@@ -1,5 +1,9 @@
 import { Suspense } from "react";
-import { fetchProjectPosture, fetchProjects } from "@/app/actions/projects";
+import {
+  fetchProjectCapabilityProgress,
+  fetchProjectPosture,
+  fetchProjects,
+} from "@/app/actions/projects";
 import { MetricsDashboard } from "@/components/metrics/metrics-dashboard";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +20,12 @@ export default async function MetricsPage({ searchParams }: MetricsPageProps) {
   const initialProject =
     projects.find((project) => project.id === requestedId) ?? projects[0] ?? null;
 
-  const initialPosture = initialProject
-    ? await fetchProjectPosture(initialProject.id)
-    : null;
+  const [initialPosture, initialCapabilityProgress] = initialProject
+    ? await Promise.all([
+        fetchProjectPosture(initialProject.id),
+        fetchProjectCapabilityProgress(initialProject.id),
+      ])
+    : [null, null];
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +49,7 @@ export default async function MetricsPage({ searchParams }: MetricsPageProps) {
           projects={projects}
           initialProjectId={initialProject?.id ?? null}
           initialPosture={initialPosture}
+          initialCapabilityProgress={initialCapabilityProgress}
         />
       </Suspense>
     </div>

@@ -10,7 +10,7 @@ import {
   projects,
   type ImplementationStatus,
 } from "@/db/schema";
-import { summarizePillar } from "@/lib/posture";
+import { outcomeCompletion, summarizePillar } from "@/lib/posture";
 import {
   ensureEnvironmentCatalogue,
   postureFromRows,
@@ -202,4 +202,97 @@ export async function getProjectPillarDetail(
     level: summary.level,
     outcomes,
   };
+}
+
+export type CapabilityProgressStatement = {
+  outcomeId: number;
+  outcomeCode: string;
+  capabilityCode: string;
+  capabilityName: string;
+  progress: number;
+};
+
+export type PillarCapabilityProgress = {
+  pillarId: number;
+  pillarName: string;
+  statements: CapabilityProgressStatement[];
+};
+
+export type ProjectCapabilityProgress = {
+  projectId: number;
+  pillars: PillarCapabilityProgress[];
+};
+
+export async function getProjectCapabilityProgress(
+  projectId: number,
+): Promise<ProjectCapabilityProgress | null> {
+  const project = await getProject(projectId);
+  if (!project) return null;
+
+  await ensureEnvironmentCatalogue(project.environmentId);
+
+  const projectStatements = alias(implementationStatements, "project_statements");
+  const environmentStatements = alias(implementationStatements, "environment_statements");
+
+  const rows = await db
+    .select({
+      pillarId: pillars.id,
+      pillarName: pillars.name,
+      sortOrder: pillars.sortOrder,
+      outcomeId: measurableOutcomes.id,
+      outcomeCode: measurableOutcomes.code,
+      capabilityCode: capabilities.code,
+      capabilityName: capabilities.name,
+      status: sql<ImplementationStatus | null>`coalesce(${projectStatements.status}, ${environmentStatements.status})`,
+      currentPercentage: sql<number | null>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage})`,
+      targetPercentage: sql<number | null>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage})`,
+    })
+    .from(pillars)
+    .leftJoin(capabilities, eq(capabilities.pillarId, pillars.id))
+    .leftJoin(measurableOutcomes, eq(measurableOutcomes.capabilityId, capabilities.id))
+    .leftJoin(
+      projectStatements,
+      and(
+        eq(projectStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(projectStatements.projectId, projectId),
+      ),
+    )
+    .leftJoin(
+      environmentStatements,
+      and(
+        eq(environmentStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(environmentStatements.environmentId, project.environmentId),
+      ),
+    )
+    .orderBy(asc(pillars.sortOrder), asc(capabilities.code), asc(measurableOutcomes.code));
+
+  const pillarsById = new Map<number, PillarCapabilityProgress>();
+
+  for (const row of rows) {
+    let pillar = pillarsById.get(row.pillarId);
+    if (!pillar) {
+      pillar = { pillarId: row.pillarId, pillarName: row.pillarName, statements: [] };
+      pillarsById.set(row.pillarId, pillar);
+    }
+    if (row.outcomeId == null || row.outcomeCode == null || row.capabilityCode == null || row.capabilityName == null) {
+      continue;
+    }
+    const completion = outcomeCompletion({
+      ztLevel: "basic",
+      status: row.status,
+      currentPercentage: row.currentPercentage ?? 0,
+      targetPercentage: row.targetPercentage ?? 100,
+    });
+    if (completion == null) continue;
+
+    pillar.statements.push({
+      outcomeId: row.outcomeId,
+      outcomeCode: row.outcomeCode,
+      capabilityCode: row.capabilityCode,
+      capabilityName: row.capabilityName,
+      progress: completion * 100,
+    });
+  }
+
+  return { projectId, pillars: [...pillarsById.values()] };
 }
