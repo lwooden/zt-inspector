@@ -39,6 +39,8 @@ export async function GET(_request: Request, context: Context) {
       measurableOutcomeId: measurableOutcomes.id,
       status: sql<ImplementationStatus | null>`coalesce(${projectStatements.status}, ${environmentStatements.status})`,
       statement: sql<string | null>`coalesce(${projectStatements.statement}, ${environmentStatements.statement})`,
+      gap: sql<string | null>`coalesce(${projectStatements.gap}, ${environmentStatements.gap})`,
+      risk: sql<string | null>`coalesce(${projectStatements.risk}, ${environmentStatements.risk})`,
       currentPercentage: sql<number>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage}, 0)`,
       targetPercentage: sql<number>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage}, 100)`,
       source: sql<StatementSource>`case when ${projectStatements.id} is not null then 'project' else 'environment' end`,
