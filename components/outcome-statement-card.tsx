@@ -53,6 +53,8 @@ export function OutcomeStatementCard({
 		outcome.status ?? "not_started",
 	);
 	const [statement, setStatement] = useState(outcome.statement ?? "");
+	const [gap, setGap] = useState(outcome.gap ?? "");
+	const [risk, setRisk] = useState(outcome.risk ?? "");
 	const [currentPercentage, setCurrentPercentage] = useState(
 		outcome.currentPercentage,
 	);
@@ -66,6 +68,8 @@ export function OutcomeStatementCard({
 	function resetForm() {
 		setStatus(outcome.status ?? "not_started");
 		setStatement(outcome.statement ?? "");
+		setGap(outcome.gap ?? "");
+		setRisk(outcome.risk ?? "");
 		setCurrentPercentage(outcome.currentPercentage);
 		setTargetPercentage(outcome.targetPercentage);
 	}
@@ -108,10 +112,14 @@ export function OutcomeStatementCard({
 		event.preventDefault();
 		setPending(true);
 		try {
-			const trimmed = statement.trim();
+			const trimmedStatement = statement.trim();
+			const trimmedGap = gap.trim();
+			const trimmedRisk = risk.trim();
 			const input = {
 				status,
-				statement: trimmed === "" ? null : trimmed,
+				statement: trimmedStatement === "" ? null : trimmedStatement,
+				gap: trimmedGap === "" ? null : trimmedGap,
+				risk: trimmedRisk === "" ? null : trimmedRisk,
 				currentPercentage,
 				targetPercentage,
 			};
@@ -205,17 +213,43 @@ export function OutcomeStatementCard({
 								{outcome.definition}
 							</p>
 						</div>
-						<label className="block min-w-0 text-sm">
-							<span className="text-xs uppercase tracking-wide text-muted">
-								Implementation Details
-							</span>
-							<textarea
-								className={`${fieldClass} min-h-28 resize-y`}
-								value={statement}
-								onChange={(event) => setStatement(event.target.value)}
-								disabled={pending}
-							/>
-						</label>
+						<div className="flex min-w-0 flex-col gap-4">
+							<label className="block text-sm">
+								<span className="text-xs uppercase tracking-wide text-muted">
+									Implementation Details
+								</span>
+								<textarea
+									className={`${fieldClass} min-h-28 resize-y`}
+									value={statement}
+									onChange={(event) => setStatement(event.target.value)}
+									disabled={pending}
+								/>
+							</label>
+							<label className="block text-sm">
+								<span className="text-xs uppercase tracking-wide text-muted">
+									Gap Analysis
+								</span>
+								<textarea
+									className={`${fieldClass} min-h-20 resize-y`}
+									value={gap}
+									onChange={(event) => setGap(event.target.value)}
+									disabled={pending}
+									placeholder="What remains to reach the target"
+								/>
+							</label>
+							<label className="block text-sm">
+								<span className="text-xs uppercase tracking-wide text-muted">
+									Risk Analysis
+								</span>
+								<textarea
+									className={`${fieldClass} min-h-20 resize-y`}
+									value={risk}
+									onChange={(event) => setRisk(event.target.value)}
+									disabled={pending}
+									placeholder="Risk while below the target"
+								/>
+							</label>
+						</div>
 						<div className="flex flex-col gap-3 md:w-44 md:shrink-0">
 							<label className="block text-sm">
 								<span className="text-xs uppercase tracking-wide text-muted">
@@ -308,19 +342,45 @@ export function OutcomeStatementCard({
 							{outcome.definition}
 						</p>
 					</div>
-					<div className="min-w-0">
-						<p className="text-xs uppercase tracking-wide text-muted">
-							Implementation Details
-						</p>
-						{outcome.statement != null && outcome.statement.trim() !== "" ? (
-							<p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
-								{outcome.statement}
+					<div className="flex min-w-0 flex-col gap-4">
+						<div>
+							<p className="text-xs uppercase tracking-wide text-muted">
+								Implementation Details
 							</p>
-						) : (
-							<p className="mt-1 text-sm text-muted">
-								No implementation statement yet
+							{outcome.statement != null && outcome.statement.trim() !== "" ? (
+								<p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+									{outcome.statement}
+								</p>
+							) : (
+								<p className="mt-1 text-sm text-muted">
+									No implementation statement yet
+								</p>
+							)}
+						</div>
+						<div>
+							<p className="text-xs uppercase tracking-wide text-muted">
+								Gap Analysis
 							</p>
-						)}
+							{outcome.gap != null && outcome.gap.trim() !== "" ? (
+								<p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+									{outcome.gap}
+								</p>
+							) : (
+								<p className="mt-1 text-sm text-muted">No gap described yet</p>
+							)}
+						</div>
+						<div>
+							<p className="text-xs uppercase tracking-wide text-muted">
+								Risk Analysis
+							</p>
+							{outcome.risk != null && outcome.risk.trim() !== "" ? (
+								<p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+									{outcome.risk}
+								</p>
+							) : (
+								<p className="mt-1 text-sm text-muted">No risk described yet</p>
+							)}
+						</div>
 					</div>
 					<div className="md:w-44 md:shrink-0 md:text-right">
 						<p className="text-xs uppercase tracking-wide text-muted">Status</p>

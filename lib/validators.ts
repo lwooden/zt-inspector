@@ -95,6 +95,8 @@ export const targetPercentageSchema = z.coerce.number().int().min(1).max(100);
 export const upsertStatementSchema = z.object({
   status: implementationStatusSchema,
   statement: z.string().nullable(),
+  gap: z.string().nullable(),
+  risk: z.string().nullable(),
   currentPercentage: currentPercentageSchema,
   targetPercentage: targetPercentageSchema,
 });

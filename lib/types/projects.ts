@@ -37,6 +37,8 @@ export type PillarOutcomeAssessment = {
   capabilityName: string;
   status: ImplementationStatus | null;
   statement: string | null;
+  gap: string | null;
+  risk: string | null;
   currentPercentage: number;
   targetPercentage: number;
   source: StatementSource;

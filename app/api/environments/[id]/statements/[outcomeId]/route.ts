@@ -46,6 +46,8 @@ export async function PUT(request: Request, context: Context) {
       measurableOutcomeId: outcomeParsed.data,
       status,
       statement: parsed.data.statement,
+      gap: parsed.data.gap,
+      risk: parsed.data.risk,
       currentPercentage: parsed.data.currentPercentage,
       targetPercentage: parsed.data.targetPercentage,
     })
@@ -57,6 +59,8 @@ export async function PUT(request: Request, context: Context) {
       set: {
         status,
         statement: parsed.data.statement,
+        gap: parsed.data.gap,
+        risk: parsed.data.risk,
         currentPercentage: parsed.data.currentPercentage,
         targetPercentage: parsed.data.targetPercentage,
         updatedAt: new Date(),

@@ -239,6 +239,8 @@ export async function getEnvironmentPillarDetail(
       capabilityName: capabilities.name,
       status: implementationStatements.status,
       statement: implementationStatements.statement,
+      gap: implementationStatements.gap,
+      risk: implementationStatements.risk,
       currentPercentage: implementationStatements.currentPercentage,
       targetPercentage: implementationStatements.targetPercentage,
     })
@@ -263,6 +265,8 @@ export async function getEnvironmentPillarDetail(
     capabilityName: row.capabilityName,
     status: row.status,
     statement: row.statement,
+    gap: row.gap,
+    risk: row.risk,
     currentPercentage: row.currentPercentage ?? 0,
     targetPercentage: row.targetPercentage ?? 100,
     source: "environment" as const,

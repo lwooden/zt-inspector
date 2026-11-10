@@ -108,6 +108,8 @@ export const implementationStatements = pgTable(
       .references(() => measurableOutcomes.id, { onDelete: "restrict" }),
     status: implementationStatus("status").notNull(),
     statement: text("statement"),
+    gap: text("gap"),
+    risk: text("risk"),
     currentPercentage: integer("current_percentage").notNull().default(0),
     targetPercentage: integer("target_percentage").notNull().default(100),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

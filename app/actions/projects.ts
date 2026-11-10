@@ -17,6 +17,8 @@ export type UpdateProjectInput = CreateProjectInput;
 export type UpsertStatementInput = {
   status: ImplementationStatus;
   statement: string | null;
+  gap: string | null;
+  risk: string | null;
   currentPercentage: number;
   targetPercentage: number;
 };
@@ -28,6 +30,8 @@ export type ImplementationStatementRow = {
   measurableOutcomeId: number;
   status: ImplementationStatus;
   statement: string | null;
+  gap: string | null;
+  risk: string | null;
   currentPercentage: number;
   targetPercentage: number;
   createdAt: Date | string;
