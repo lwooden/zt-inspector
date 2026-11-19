@@ -41,6 +41,8 @@ export type PillarOutcomeAssessment = {
   risk: string | null;
   currentPercentage: number;
   targetPercentage: number;
+  targetImplementationDate: string | null;
+  updatedAt: Date | string | null;
   source: StatementSource;
 };
 

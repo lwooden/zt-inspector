@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   bigint,
   check,
+  date,
   index,
   integer,
   pgEnum,
@@ -112,6 +113,7 @@ export const implementationStatements = pgTable(
     risk: text("risk"),
     currentPercentage: integer("current_percentage").notNull().default(0),
     targetPercentage: integer("target_percentage").notNull().default(100),
+    targetImplementationDate: date("target_implementation_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

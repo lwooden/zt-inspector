@@ -21,6 +21,7 @@ export type UpsertStatementInput = {
   risk: string | null;
   currentPercentage: number;
   targetPercentage: number;
+  targetImplementationDate: string | null;
 };
 
 export type ImplementationStatementRow = {
@@ -34,6 +35,7 @@ export type ImplementationStatementRow = {
   risk: string | null;
   currentPercentage: number;
   targetPercentage: number;
+  targetImplementationDate: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 };

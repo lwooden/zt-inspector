@@ -243,6 +243,8 @@ export async function getEnvironmentPillarDetail(
       risk: implementationStatements.risk,
       currentPercentage: implementationStatements.currentPercentage,
       targetPercentage: implementationStatements.targetPercentage,
+      targetImplementationDate: implementationStatements.targetImplementationDate,
+      updatedAt: implementationStatements.updatedAt,
     })
     .from(capabilities)
     .innerJoin(measurableOutcomes, eq(measurableOutcomes.capabilityId, capabilities.id))
@@ -269,6 +271,8 @@ export async function getEnvironmentPillarDetail(
     risk: row.risk,
     currentPercentage: row.currentPercentage ?? 0,
     targetPercentage: row.targetPercentage ?? 100,
+    targetImplementationDate: row.targetImplementationDate,
+    updatedAt: row.updatedAt,
     source: "environment" as const,
   }));
 

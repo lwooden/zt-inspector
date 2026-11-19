@@ -9,6 +9,7 @@ import { upsertEnvironmentStatement } from "@/app/actions/environments";
 import { Button } from "@/components/ui/button";
 import type { ImplementationStatus } from "@/db/schema";
 import { normalizeStatementStatus } from "@/lib/posture";
+import { formatRelativeTime } from "@/lib/relative-time";
 import type { PillarOutcomeAssessment } from "@/lib/types/projects";
 
 type OutcomeStatementCardProps = {
@@ -33,6 +34,16 @@ const CURRENT_PERCENTAGE_OPTIONS = Array.from(
 function formatStatus(status: PillarOutcomeAssessment["status"]) {
 	if (status === null) return "not assessed";
 	return status.replaceAll("_", " ");
+}
+
+function formatTargetDate(value: string) {
+	const [year, month, day] = value.split("-").map(Number);
+	if (!year || !month || !day) return value;
+	return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	});
 }
 
 const fieldClass =
@@ -61,9 +72,15 @@ export function OutcomeStatementCard({
 	const [targetPercentage, setTargetPercentage] = useState(
 		outcome.targetPercentage,
 	);
+	const [targetImplementationDate, setTargetImplementationDate] = useState(
+		outcome.targetImplementationDate ?? "",
+	);
 	const [pending, setPending] = useState(false);
 
 	const percentageDisabled = status === "not_applicable" || pending;
+	const showTargetDate = projectId != null;
+	const updatedLabel =
+		outcome.updatedAt != null ? formatRelativeTime(outcome.updatedAt) : "";
 
 	function resetForm() {
 		setStatus(outcome.status ?? "not_started");
@@ -72,6 +89,7 @@ export function OutcomeStatementCard({
 		setRisk(outcome.risk ?? "");
 		setCurrentPercentage(outcome.currentPercentage);
 		setTargetPercentage(outcome.targetPercentage);
+		setTargetImplementationDate(outcome.targetImplementationDate ?? "");
 	}
 
 	function startEditing() {
@@ -122,6 +140,11 @@ export function OutcomeStatementCard({
 				risk: trimmedRisk === "" ? null : trimmedRisk,
 				currentPercentage,
 				targetPercentage,
+				targetImplementationDate: showTargetDate
+					? targetImplementationDate.trim() === ""
+						? null
+						: targetImplementationDate.trim()
+					: (outcome.targetImplementationDate ?? null),
 			};
 			const result =
 				projectId != null
@@ -177,7 +200,10 @@ export function OutcomeStatementCard({
 		<li className="border border-border bg-surface px-4 py-4">
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div>
-					<h3 className="font-medium text-foreground">{outcome.code}</h3>
+					<h3 className="font-medium text-foreground">
+						{outcome.code}
+						{updatedLabel ? ` - updated ${updatedLabel}` : ""}
+					</h3>
 					<p className="mt-0.5 font-mono text-xs text-muted">
 						{outcome.capabilityCode} - {outcome.capabilityName}
 					</p>
@@ -306,6 +332,22 @@ export function OutcomeStatementCard({
 									disabled={percentageDisabled}
 								/>
 							</label>
+							{showTargetDate ? (
+								<label className="block text-sm">
+									<span className="text-xs uppercase tracking-wide text-muted">
+										Target Implementation Date
+									</span>
+									<input
+										type="date"
+										className={fieldClass}
+										value={targetImplementationDate}
+										onChange={(event) =>
+											setTargetImplementationDate(event.target.value)
+										}
+										disabled={pending}
+									/>
+								</label>
+							) : null}
 						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-3">
@@ -393,6 +435,20 @@ export function OutcomeStatementCard({
 						<p className="mt-1 font-mono text-xs text-foreground">
 							{outcome.currentPercentage}% / {outcome.targetPercentage}%
 						</p>
+						{projectId != null && outcome.source === "project" ? (
+							<>
+								<p className="mt-3 text-xs uppercase tracking-wide text-muted">
+									Target Implementation Date
+								</p>
+								{outcome.targetImplementationDate ? (
+									<p className="mt-1 font-mono text-xs text-foreground">
+										{formatTargetDate(outcome.targetImplementationDate)}
+									</p>
+								) : (
+									<p className="mt-1 text-xs text-muted">No date set</p>
+								)}
+							</>
+						) : null}
 					</div>
 				</div>
 			)}

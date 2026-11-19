@@ -43,6 +43,8 @@ export async function GET(_request: Request, context: Context) {
       risk: sql<string | null>`coalesce(${projectStatements.risk}, ${environmentStatements.risk})`,
       currentPercentage: sql<number>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage}, 0)`,
       targetPercentage: sql<number>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage}, 100)`,
+      targetImplementationDate: sql<string | null>`coalesce(${projectStatements.targetImplementationDate}, ${environmentStatements.targetImplementationDate})`,
+      updatedAt: sql<Date | string | null>`coalesce(${projectStatements.updatedAt}, ${environmentStatements.updatedAt})`,
       source: sql<StatementSource>`case when ${projectStatements.id} is not null then 'project' else 'environment' end`,
       outcome: {
         id: measurableOutcomes.id,
