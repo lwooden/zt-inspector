@@ -92,6 +92,11 @@ export const currentPercentageSchema = percentageSchema.refine(
 
 export const targetPercentageSchema = z.coerce.number().int().min(1).max(100);
 
+export const targetImplementationDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "targetImplementationDate must be YYYY-MM-DD")
+  .nullable();
+
 export const upsertStatementSchema = z.object({
   status: implementationStatusSchema,
   statement: z.string().nullable(),
@@ -99,4 +104,5 @@ export const upsertStatementSchema = z.object({
   risk: z.string().nullable(),
   currentPercentage: currentPercentageSchema,
   targetPercentage: targetPercentageSchema,
+  targetImplementationDate: targetImplementationDateSchema,
 });

@@ -149,6 +149,8 @@ export async function getProjectPillarDetail(
       risk: sql<string | null>`coalesce(${projectStatements.risk}, ${environmentStatements.risk})`,
       currentPercentage: sql<number | null>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage})`,
       targetPercentage: sql<number | null>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage})`,
+      targetImplementationDate: sql<string | null>`coalesce(${projectStatements.targetImplementationDate}, ${environmentStatements.targetImplementationDate})`,
+      updatedAt: sql<Date | string | null>`coalesce(${projectStatements.updatedAt}, ${environmentStatements.updatedAt})`,
       source: sql<StatementSource>`case when ${projectStatements.id} is not null then 'project' else 'environment' end`,
     })
     .from(capabilities)
@@ -183,6 +185,8 @@ export async function getProjectPillarDetail(
     risk: row.risk,
     currentPercentage: row.currentPercentage ?? 0,
     targetPercentage: row.targetPercentage ?? 100,
+    targetImplementationDate: row.targetImplementationDate,
+    updatedAt: row.updatedAt,
     source: row.source,
   }));
 

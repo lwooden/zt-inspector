@@ -55,6 +55,7 @@ export async function PUT(request: Request, context: Context) {
       risk: parsed.data.risk,
       currentPercentage: parsed.data.currentPercentage,
       targetPercentage: parsed.data.targetPercentage,
+      targetImplementationDate: parsed.data.targetImplementationDate,
     })
     .onConflictDoUpdate({
       target: [
@@ -68,6 +69,7 @@ export async function PUT(request: Request, context: Context) {
         risk: parsed.data.risk,
         currentPercentage: parsed.data.currentPercentage,
         targetPercentage: parsed.data.targetPercentage,
+        targetImplementationDate: parsed.data.targetImplementationDate,
         updatedAt: new Date(),
       },
     })
