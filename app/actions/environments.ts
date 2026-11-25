@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api";
 import type {
   ImplementationStatementRow,
@@ -11,6 +12,14 @@ import type {
   EnvironmentPillarDetail,
   EnvironmentPosture,
 } from "@/lib/types/environments";
+import type { VerificationRole } from "@/lib/verification";
+
+function revalidateEnvironment(environmentId: number | string) {
+  revalidatePath(`/environments/${environmentId}`, "layout");
+  revalidatePath("/environments");
+  revalidatePath("/projects");
+  revalidatePath("/metrics");
+}
 
 export type CreateEnvironmentInput = {
   name: string;
@@ -127,5 +136,49 @@ export async function upsertEnvironmentStatement(
   } catch (error) {
     if (error instanceof ApiError) return { ok: false, error: error.message };
     return { ok: false, error: "Failed to update statement" };
+  }
+}
+
+export async function verifyEnvironmentStatement(
+  environmentId: number | string,
+  measurableOutcomeId: number | string,
+  role: VerificationRole,
+): Promise<UpsertStatementResult> {
+  try {
+    const statement = await apiFetch<ImplementationStatementRow>(
+      `/api/environments/${environmentId}/statements/${measurableOutcomeId}/verify`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role }),
+      },
+    );
+    revalidateEnvironment(environmentId);
+    return { ok: true, statement };
+  } catch (error) {
+    if (error instanceof ApiError) return { ok: false, error: error.message };
+    return { ok: false, error: "Failed to verify statement" };
+  }
+}
+
+export async function unverifyEnvironmentStatement(
+  environmentId: number | string,
+  measurableOutcomeId: number | string,
+  role: VerificationRole,
+): Promise<UpsertStatementResult> {
+  try {
+    const statement = await apiFetch<ImplementationStatementRow>(
+      `/api/environments/${environmentId}/statements/${measurableOutcomeId}/verify`,
+      {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role }),
+      },
+    );
+    revalidateEnvironment(environmentId);
+    return { ok: true, statement };
+  } catch (error) {
+    if (error instanceof ApiError) return { ok: false, error: error.message };
+    return { ok: false, error: "Failed to clear verification" };
   }
 }

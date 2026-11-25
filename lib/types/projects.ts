@@ -1,7 +1,10 @@
 import type { LevelCounts, PillarPostureLevel } from "@/lib/posture";
 import type { ImplementationStatus, ZtLevel } from "@/db/schema";
+import type { StatementVerification } from "@/lib/verification";
 
 export type StatementSource = "project" | "environment";
+
+export type { StatementVerification };
 
 export type Project = {
   id: number;
@@ -42,6 +45,7 @@ export type PillarOutcomeAssessment = {
   currentPercentage: number;
   targetPercentage: number;
   targetImplementationDate: string | null;
+  verification: StatementVerification;
   updatedAt: Date | string | null;
   source: StatementSource;
 };
