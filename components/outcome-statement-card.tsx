@@ -1,16 +1,46 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { toast } from "sonner";
-import { revertStatement, upsertStatement } from "@/app/actions/projects";
-import { upsertEnvironmentStatement } from "@/app/actions/environments";
+import {
+	revertStatement,
+	unverifyStatement,
+	upsertStatement,
+	verifyStatement,
+	type ImplementationStatementRow,
+} from "@/app/actions/projects";
+import {
+	unverifyEnvironmentStatement,
+	upsertEnvironmentStatement,
+	verifyEnvironmentStatement,
+} from "@/app/actions/environments";
 import { Button } from "@/components/ui/button";
 import type { ImplementationStatus } from "@/db/schema";
 import { normalizeStatementStatus } from "@/lib/posture";
 import { formatRelativeTime } from "@/lib/relative-time";
 import type { PillarOutcomeAssessment } from "@/lib/types/projects";
+import {
+	canAttestRole,
+	canClearRole,
+	EMPTY_VERIFICATION,
+	isFullyVerified,
+	VERIFICATION_ROLE_META,
+	VERIFICATION_ROLES,
+	type StatementVerification,
+	type VerificationRole,
+} from "@/lib/verification";
+
+function verificationFromStatement(
+	statement: ImplementationStatementRow,
+): StatementVerification {
+	return {
+		projectManagerAt: statement.verifiedByProjectManagerAt,
+		productManagerAt: statement.verifiedByProductManagerAt,
+		ztLeadAt: statement.verifiedByZtLeadAt,
+	};
+}
 
 type OutcomeStatementCardProps = {
 	outcome: PillarOutcomeAssessment;
@@ -52,6 +82,14 @@ const fieldClass =
 const iconButtonClass =
 	"inline-flex size-8 items-center justify-center border border-transparent text-foreground transition-colors hover:border-border hover:bg-background hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
+function useIsClient() {
+	return useSyncExternalStore(
+		() => () => {},
+		() => true,
+		() => false,
+	);
+}
+
 export function OutcomeStatementCard({
 	projectId,
 	environmentId,
@@ -59,6 +97,7 @@ export function OutcomeStatementCard({
 	outcome,
 }: OutcomeStatementCardProps) {
 	const router = useRouter();
+	const isClient = useIsClient();
 	const [editing, setEditing] = useState(false);
 	const [status, setStatus] = useState<ImplementationStatus>(
 		outcome.status ?? "not_started",
@@ -75,12 +114,23 @@ export function OutcomeStatementCard({
 	const [targetImplementationDate, setTargetImplementationDate] = useState(
 		outcome.targetImplementationDate ?? "",
 	);
+	const [verification, setVerification] = useState<StatementVerification>(
+		outcome.verification ?? EMPTY_VERIFICATION,
+	);
 	const [pending, setPending] = useState(false);
+
+	useEffect(() => {
+		setVerification(outcome.verification ?? EMPTY_VERIFICATION);
+	}, [outcome.verification]);
 
 	const percentageDisabled = status === "not_applicable" || pending;
 	const showTargetDate = projectId != null;
 	const updatedLabel =
-		outcome.updatedAt != null ? formatRelativeTime(outcome.updatedAt) : "";
+		isClient && outcome.updatedAt != null
+			? formatRelativeTime(outcome.updatedAt)
+			: "";
+	const canVerify = outcome.status === "implemented";
+	const fullyVerified = isFullyVerified(verification);
 
 	function resetForm() {
 		setStatus(outcome.status ?? "not_started");
@@ -160,6 +210,7 @@ export function OutcomeStatementCard({
 				return;
 			}
 
+			setVerification(verificationFromStatement(result.statement));
 			toast.success("Statement updated");
 			setEditing(false);
 			router.refresh();
@@ -189,6 +240,65 @@ export function OutcomeStatementCard({
 		}
 	}
 
+	async function onVerifyRole(role: VerificationRole) {
+		setPending(true);
+		try {
+			const result =
+				projectId != null
+					? await verifyStatement(projectId, outcome.id, role)
+					: await verifyEnvironmentStatement(
+							environmentId ?? "",
+							outcome.id,
+							role,
+						);
+			if (!result.ok) {
+				toast.error(result.error);
+				return;
+			}
+			setVerification(verificationFromStatement(result.statement));
+			toast.success(`${VERIFICATION_ROLE_META[role].label} verified`);
+			router.refresh();
+		} catch {
+			toast.error("Failed to verify statement");
+		} finally {
+			setPending(false);
+		}
+	}
+
+	async function onUnverifyRole(role: VerificationRole) {
+		setPending(true);
+		try {
+			const result =
+				projectId != null
+					? await unverifyStatement(projectId, outcome.id, role)
+					: await unverifyEnvironmentStatement(
+							environmentId ?? "",
+							outcome.id,
+							role,
+						);
+			if (!result.ok) {
+				toast.error(result.error);
+				return;
+			}
+			setVerification(verificationFromStatement(result.statement));
+			toast.success(`${VERIFICATION_ROLE_META[role].label} cleared`);
+			router.refresh();
+		} catch {
+			toast.error("Failed to clear verification");
+		} finally {
+			setPending(false);
+		}
+	}
+
+	function roleLabel(role: VerificationRole) {
+		const meta = VERIFICATION_ROLE_META[role];
+		const at = verification[meta.field];
+		if (at == null) return meta.label;
+		const relative =
+			isClient && at != null ? formatRelativeTime(at) : "";
+		return relative ? `${meta.label} · verified ${relative}` : meta.label;
+	}
+
 	const custodyLabel =
 		projectId == null
 			? null
@@ -212,6 +322,70 @@ export function OutcomeStatementCard({
 					) : null}
 				</div>
 				<div className="flex items-center gap-2">
+					{canVerify && !editing ? (
+						<span
+							className={`mr-1 inline-flex items-center gap-1.5 ${fullyVerified ? "opacity-100" : "opacity-90"}`}
+							role="group"
+							aria-label="Verification checkpoints"
+						>
+							{VERIFICATION_ROLES.map((role) => {
+								const meta = VERIFICATION_ROLE_META[role];
+								const filled = verification[meta.field] != null;
+								const canAttest = canAttestRole(verification, role);
+								const canClear = canClearRole(verification, role);
+								const interactive = filled ? canClear : canAttest;
+								const label = roleLabel(role);
+
+								if (!interactive) {
+									return (
+										<span
+											key={role}
+											className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-border bg-background"
+											title={label}
+											aria-label={label}
+										/>
+									);
+								}
+
+								return (
+									<button
+										key={role}
+										type="button"
+										className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+										style={
+											filled
+												? {
+														backgroundColor: meta.color,
+														borderColor: meta.color,
+													}
+												: {
+														borderColor: meta.color,
+														backgroundColor: "transparent",
+													}
+										}
+										title={label}
+										aria-label={
+											filled
+												? `Clear ${meta.label} verification`
+												: `Mark verified as ${meta.label}`
+										}
+										disabled={pending}
+										onClick={() =>
+											filled ? onUnverifyRole(role) : onVerifyRole(role)
+										}
+									>
+										{filled ? (
+											<Check
+												className="size-2.5 text-white"
+												aria-hidden
+												strokeWidth={3}
+											/>
+										) : null}
+									</button>
+								);
+							})}
+						</span>
+					) : null}
 					<span className="inline-block border border-border bg-background px-2 py-0.5 font-mono text-xs lowercase text-foreground">
 						{outcome.ztLevel}
 					</span>

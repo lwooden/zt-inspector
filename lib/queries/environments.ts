@@ -17,6 +17,12 @@ import type {
   EnvironmentPosture,
 } from "@/lib/types/environments";
 import type { PillarPosture } from "@/lib/types/projects";
+import {
+  applyVerificationAttest,
+  applyVerificationClear,
+  verificationColumns,
+  type VerificationRole,
+} from "@/lib/verification";
 
 export type CreateEnvironmentInput = {
   name: string;
@@ -244,6 +250,9 @@ export async function getEnvironmentPillarDetail(
       currentPercentage: implementationStatements.currentPercentage,
       targetPercentage: implementationStatements.targetPercentage,
       targetImplementationDate: implementationStatements.targetImplementationDate,
+      verifiedByProjectManagerAt: implementationStatements.verifiedByProjectManagerAt,
+      verifiedByProductManagerAt: implementationStatements.verifiedByProductManagerAt,
+      verifiedByZtLeadAt: implementationStatements.verifiedByZtLeadAt,
       updatedAt: implementationStatements.updatedAt,
     })
     .from(capabilities)
@@ -272,6 +281,11 @@ export async function getEnvironmentPillarDetail(
     currentPercentage: row.currentPercentage ?? 0,
     targetPercentage: row.targetPercentage ?? 100,
     targetImplementationDate: row.targetImplementationDate,
+    verification: {
+      projectManagerAt: row.verifiedByProjectManagerAt,
+      productManagerAt: row.verifiedByProductManagerAt,
+      ztLeadAt: row.verifiedByZtLeadAt,
+    },
     updatedAt: row.updatedAt,
     source: "environment" as const,
   }));
@@ -305,4 +319,110 @@ export async function countProjectsInEnvironment(environmentId: number): Promise
     .from(projects)
     .where(eq(projects.environmentId, environmentId));
   return rows.length;
+}
+
+export async function verifyEnvironmentStatement(
+  environmentId: number,
+  measurableOutcomeId: number,
+  role: VerificationRole,
+) {
+  const environment = await getEnvironment(environmentId);
+  if (!environment) return { ok: false as const, error: "not_found" as const };
+
+  const [row] = await db
+    .select({
+      status: implementationStatements.status,
+      verifiedByProjectManagerAt: implementationStatements.verifiedByProjectManagerAt,
+      verifiedByProductManagerAt: implementationStatements.verifiedByProductManagerAt,
+      verifiedByZtLeadAt: implementationStatements.verifiedByZtLeadAt,
+    })
+    .from(implementationStatements)
+    .where(
+      and(
+        eq(implementationStatements.environmentId, environmentId),
+        eq(implementationStatements.measurableOutcomeId, measurableOutcomeId),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return { ok: false as const, error: "not_found" as const };
+  if (row.status !== "implemented") {
+    return { ok: false as const, error: "not_implemented" as const };
+  }
+
+  const now = new Date();
+  const applied = applyVerificationAttest(
+    {
+      projectManagerAt: row.verifiedByProjectManagerAt,
+      productManagerAt: row.verifiedByProductManagerAt,
+      ztLeadAt: row.verifiedByZtLeadAt,
+    },
+    role,
+    now,
+  );
+  if (!applied.ok) return { ok: false as const, error: applied.error };
+
+  const [saved] = await db
+    .update(implementationStatements)
+    .set({ ...verificationColumns(applied.verification), updatedAt: now })
+    .where(
+      and(
+        eq(implementationStatements.environmentId, environmentId),
+        eq(implementationStatements.measurableOutcomeId, measurableOutcomeId),
+      ),
+    )
+    .returning();
+
+  return { ok: true as const, statement: saved };
+}
+
+export async function unverifyEnvironmentStatement(
+  environmentId: number,
+  measurableOutcomeId: number,
+  role: VerificationRole,
+) {
+  const environment = await getEnvironment(environmentId);
+  if (!environment) return { ok: false as const, error: "not_found" as const };
+
+  const [row] = await db
+    .select({
+      id: implementationStatements.id,
+      verifiedByProjectManagerAt: implementationStatements.verifiedByProjectManagerAt,
+      verifiedByProductManagerAt: implementationStatements.verifiedByProductManagerAt,
+      verifiedByZtLeadAt: implementationStatements.verifiedByZtLeadAt,
+    })
+    .from(implementationStatements)
+    .where(
+      and(
+        eq(implementationStatements.environmentId, environmentId),
+        eq(implementationStatements.measurableOutcomeId, measurableOutcomeId),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return { ok: false as const, error: "not_found" as const };
+
+  const applied = applyVerificationClear(
+    {
+      projectManagerAt: row.verifiedByProjectManagerAt,
+      productManagerAt: row.verifiedByProductManagerAt,
+      ztLeadAt: row.verifiedByZtLeadAt,
+    },
+    role,
+  );
+  if (!applied.ok) return { ok: false as const, error: applied.error };
+
+  const now = new Date();
+  const [saved] = await db
+    .update(implementationStatements)
+    .set({ ...verificationColumns(applied.verification), updatedAt: now })
+    .where(
+      and(
+        eq(implementationStatements.environmentId, environmentId),
+        eq(implementationStatements.measurableOutcomeId, measurableOutcomeId),
+      ),
+    )
+    .returning();
+
+  return { ok: true as const, statement: saved };
 }

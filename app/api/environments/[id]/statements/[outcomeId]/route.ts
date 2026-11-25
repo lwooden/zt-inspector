@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { environments, implementationStatements, measurableOutcomes } from "@/db/schema";
 import { jsonError, readJson, validationError } from "@/lib/http";
 import { normalizeStatementStatus } from "@/lib/posture";
+import { clearVerificationColumns } from "@/lib/verification";
 import { idSchema, upsertStatementSchema } from "@/lib/validators";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export async function PUT(request: Request, context: Context) {
     parsed.data.currentPercentage,
     parsed.data.targetPercentage,
   );
+  const clearVerification = status !== "implemented";
 
   const [saved] = await db
     .insert(implementationStatements)
@@ -51,6 +53,7 @@ export async function PUT(request: Request, context: Context) {
       currentPercentage: parsed.data.currentPercentage,
       targetPercentage: parsed.data.targetPercentage,
       targetImplementationDate: parsed.data.targetImplementationDate,
+      ...clearVerificationColumns(),
     })
     .onConflictDoUpdate({
       target: [
@@ -65,6 +68,7 @@ export async function PUT(request: Request, context: Context) {
         currentPercentage: parsed.data.currentPercentage,
         targetPercentage: parsed.data.targetPercentage,
         targetImplementationDate: parsed.data.targetImplementationDate,
+        ...(clearVerification ? clearVerificationColumns() : {}),
         updatedAt: new Date(),
       },
     })

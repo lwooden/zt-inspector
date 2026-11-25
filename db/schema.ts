@@ -114,6 +114,13 @@ export const implementationStatements = pgTable(
     currentPercentage: integer("current_percentage").notNull().default(0),
     targetPercentage: integer("target_percentage").notNull().default(100),
     targetImplementationDate: date("target_implementation_date", { mode: "string" }),
+    verifiedByProjectManagerAt: timestamp("verified_by_project_manager_at", {
+      withTimezone: true,
+    }),
+    verifiedByProductManagerAt: timestamp("verified_by_product_manager_at", {
+      withTimezone: true,
+    }),
+    verifiedByZtLeadAt: timestamp("verified_by_zt_lead_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

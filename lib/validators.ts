@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { implementationStatus, ztLevel } from "@/db/schema";
+import { VERIFICATION_ROLES } from "@/lib/verification";
 
 export const ztLevelSchema = z.enum(ztLevel.enumValues);
 export const implementationStatusSchema = z.enum(implementationStatus.enumValues);
+export const verificationRoleSchema = z.enum(VERIFICATION_ROLES);
 
 export const idSchema = z.coerce.number().int().positive();
 
@@ -105,4 +107,8 @@ export const upsertStatementSchema = z.object({
   currentPercentage: currentPercentageSchema,
   targetPercentage: targetPercentageSchema,
   targetImplementationDate: targetImplementationDateSchema,
+});
+
+export const verifyRoleBodySchema = z.object({
+  role: verificationRoleSchema,
 });

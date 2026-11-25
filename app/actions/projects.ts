@@ -1,9 +1,17 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { ImplementationStatus } from "@/db/schema";
 import type { ProjectCapabilityProgress } from "@/lib/queries/projects";
 import type { Project, ProjectPillarDetail, ProjectPosture } from "@/lib/types/projects";
+import type { VerificationRole } from "@/lib/verification";
+
+function revalidateProject(projectId: number | string) {
+  revalidatePath(`/projects/${projectId}`, "layout");
+  revalidatePath("/projects");
+  revalidatePath("/metrics");
+}
 
 export type CreateProjectInput = {
   name: string;
@@ -36,6 +44,9 @@ export type ImplementationStatementRow = {
   currentPercentage: number;
   targetPercentage: number;
   targetImplementationDate: string | null;
+  verifiedByProjectManagerAt: Date | string | null;
+  verifiedByProductManagerAt: Date | string | null;
+  verifiedByZtLeadAt: Date | string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 };
@@ -193,5 +204,53 @@ export async function revertStatement(
       return { ok: false, error: error.message };
     }
     return { ok: false, error: "Failed to revert statement" };
+  }
+}
+
+export async function verifyStatement(
+  projectId: number | string,
+  measurableOutcomeId: number | string,
+  role: VerificationRole,
+): Promise<UpsertStatementResult> {
+  try {
+    const statement = await apiFetch<ImplementationStatementRow>(
+      `/api/projects/${projectId}/statements/${measurableOutcomeId}/verify`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role }),
+      },
+    );
+    revalidateProject(projectId);
+    return { ok: true, statement };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Failed to verify statement" };
+  }
+}
+
+export async function unverifyStatement(
+  projectId: number | string,
+  measurableOutcomeId: number | string,
+  role: VerificationRole,
+): Promise<UpsertStatementResult> {
+  try {
+    const statement = await apiFetch<ImplementationStatementRow>(
+      `/api/projects/${projectId}/statements/${measurableOutcomeId}/verify`,
+      {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ role }),
+      },
+    );
+    revalidateProject(projectId);
+    return { ok: true, statement };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Failed to clear verification" };
   }
 }

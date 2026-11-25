@@ -9,11 +9,27 @@ function plural(count: number, unit: string) {
   return count === 1 ? `${count} ${unit} ago` : `${count} ${unit}s ago`;
 }
 
+/** Normalize Postgres / driver timestamps so Safari and Node agree. */
+export function parseTimestamp(value: Date | string): Date {
+  if (value instanceof Date) return value;
+
+  const trimmed = value.trim();
+  if (trimmed === "") return new Date(Number.NaN);
+
+  // "2026-11-19 13:19:48.015+00" → "2026-11-19T13:19:48.015+00:00"
+  const withT = trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T");
+  const withOffset = withT
+    .replace(/([+-]\d{2})$/, "$1:00")
+    .replace(/\+00:00$/, "Z");
+
+  return new Date(withOffset);
+}
+
 export function formatRelativeTime(
   value: Date | string,
   now: Date = new Date(),
 ): string {
-  const date = value instanceof Date ? value : new Date(value);
+  const date = parseTimestamp(value);
   if (Number.isNaN(date.getTime())) return "";
 
   const diffMs = Math.max(0, now.getTime() - date.getTime());

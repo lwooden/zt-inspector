@@ -16,6 +16,13 @@ import {
   postureFromRows,
 } from "@/lib/queries/environments";
 import type { Project, ProjectPillarDetail, ProjectPosture, StatementSource } from "@/lib/types/projects";
+import {
+  applyVerificationAttest,
+  applyVerificationClear,
+  verificationColumns,
+  type StatementVerification,
+  type VerificationRole,
+} from "@/lib/verification";
 
 export type {
   Project,
@@ -150,6 +157,9 @@ export async function getProjectPillarDetail(
       currentPercentage: sql<number | null>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage})`,
       targetPercentage: sql<number | null>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage})`,
       targetImplementationDate: sql<string | null>`coalesce(${projectStatements.targetImplementationDate}, ${environmentStatements.targetImplementationDate})`,
+      verifiedByProjectManagerAt: sql<Date | string | null>`case when ${projectStatements.id} is not null then ${projectStatements.verifiedByProjectManagerAt} else ${environmentStatements.verifiedByProjectManagerAt} end`,
+      verifiedByProductManagerAt: sql<Date | string | null>`case when ${projectStatements.id} is not null then ${projectStatements.verifiedByProductManagerAt} else ${environmentStatements.verifiedByProductManagerAt} end`,
+      verifiedByZtLeadAt: sql<Date | string | null>`case when ${projectStatements.id} is not null then ${projectStatements.verifiedByZtLeadAt} else ${environmentStatements.verifiedByZtLeadAt} end`,
       updatedAt: sql<Date | string | null>`coalesce(${projectStatements.updatedAt}, ${environmentStatements.updatedAt})`,
       source: sql<StatementSource>`case when ${projectStatements.id} is not null then 'project' else 'environment' end`,
     })
@@ -186,6 +196,11 @@ export async function getProjectPillarDetail(
     currentPercentage: row.currentPercentage ?? 0,
     targetPercentage: row.targetPercentage ?? 100,
     targetImplementationDate: row.targetImplementationDate,
+    verification: {
+      projectManagerAt: row.verifiedByProjectManagerAt,
+      productManagerAt: row.verifiedByProductManagerAt,
+      ztLeadAt: row.verifiedByZtLeadAt,
+    },
     updatedAt: row.updatedAt,
     source: row.source,
   }));
@@ -303,4 +318,163 @@ export async function getProjectCapabilityProgress(
   }
 
   return { projectId, pillars: [...pillarsById.values()] };
+}
+
+type EffectiveStatementRow = {
+  status: ImplementationStatus | null;
+  statement: string | null;
+  gap: string | null;
+  risk: string | null;
+  currentPercentage: number;
+  targetPercentage: number;
+  targetImplementationDate: string | null;
+  verification: StatementVerification;
+};
+
+async function getProjectEffectiveStatement(
+  projectId: number,
+  measurableOutcomeId: number,
+): Promise<EffectiveStatementRow | null> {
+  const project = await getProject(projectId);
+  if (!project) return null;
+
+  const projectStatements = alias(implementationStatements, "project_statements");
+  const environmentStatements = alias(implementationStatements, "environment_statements");
+
+  const [row] = await db
+    .select({
+      status: sql<ImplementationStatus | null>`coalesce(${projectStatements.status}, ${environmentStatements.status})`,
+      statement: sql<string | null>`coalesce(${projectStatements.statement}, ${environmentStatements.statement})`,
+      gap: sql<string | null>`coalesce(${projectStatements.gap}, ${environmentStatements.gap})`,
+      risk: sql<string | null>`coalesce(${projectStatements.risk}, ${environmentStatements.risk})`,
+      currentPercentage: sql<number | null>`coalesce(${projectStatements.currentPercentage}, ${environmentStatements.currentPercentage})`,
+      targetPercentage: sql<number | null>`coalesce(${projectStatements.targetPercentage}, ${environmentStatements.targetPercentage})`,
+      targetImplementationDate: sql<string | null>`coalesce(${projectStatements.targetImplementationDate}, ${environmentStatements.targetImplementationDate})`,
+      verifiedByProjectManagerAt: sql<Date | string | null>`case when ${projectStatements.id} is not null then ${projectStatements.verifiedByProjectManagerAt} else ${environmentStatements.verifiedByProjectManagerAt} end`,
+      verifiedByProductManagerAt: sql<Date | string | null>`case when ${projectStatements.id} is not null then ${projectStatements.verifiedByProductManagerAt} else ${environmentStatements.verifiedByProductManagerAt} end`,
+      verifiedByZtLeadAt: sql<Date | string | null>`case when ${projectStatements.id} is not null then ${projectStatements.verifiedByZtLeadAt} else ${environmentStatements.verifiedByZtLeadAt} end`,
+    })
+    .from(measurableOutcomes)
+    .leftJoin(
+      projectStatements,
+      and(
+        eq(projectStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(projectStatements.projectId, projectId),
+      ),
+    )
+    .leftJoin(
+      environmentStatements,
+      and(
+        eq(environmentStatements.measurableOutcomeId, measurableOutcomes.id),
+        eq(environmentStatements.environmentId, project.environmentId),
+      ),
+    )
+    .where(eq(measurableOutcomes.id, measurableOutcomeId))
+    .limit(1);
+
+  if (!row || row.status == null) return null;
+
+  return {
+    status: row.status,
+    statement: row.statement,
+    gap: row.gap,
+    risk: row.risk,
+    currentPercentage: row.currentPercentage ?? 0,
+    targetPercentage: row.targetPercentage ?? 100,
+    targetImplementationDate: row.targetImplementationDate,
+    verification: {
+      projectManagerAt: row.verifiedByProjectManagerAt,
+      productManagerAt: row.verifiedByProductManagerAt,
+      ztLeadAt: row.verifiedByZtLeadAt,
+    },
+  };
+}
+
+export async function verifyProjectStatement(
+  projectId: number,
+  measurableOutcomeId: number,
+  role: VerificationRole,
+) {
+  const effective = await getProjectEffectiveStatement(projectId, measurableOutcomeId);
+  if (!effective) return { ok: false as const, error: "not_found" as const };
+  if (effective.status !== "implemented") {
+    return { ok: false as const, error: "not_implemented" as const };
+  }
+
+  const now = new Date();
+  const applied = applyVerificationAttest(effective.verification, role, now);
+  if (!applied.ok) return { ok: false as const, error: applied.error };
+
+  const verification = verificationColumns(applied.verification);
+  const [saved] = await db
+    .insert(implementationStatements)
+    .values({
+      projectId,
+      measurableOutcomeId,
+      status: effective.status,
+      statement: effective.statement,
+      gap: effective.gap,
+      risk: effective.risk,
+      currentPercentage: effective.currentPercentage,
+      targetPercentage: effective.targetPercentage,
+      targetImplementationDate: effective.targetImplementationDate,
+      ...verification,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        implementationStatements.projectId,
+        implementationStatements.measurableOutcomeId,
+      ],
+      set: {
+        ...verification,
+        updatedAt: now,
+      },
+    })
+    .returning();
+
+  return { ok: true as const, statement: saved };
+}
+
+export async function unverifyProjectStatement(
+  projectId: number,
+  measurableOutcomeId: number,
+  role: VerificationRole,
+) {
+  const effective = await getProjectEffectiveStatement(projectId, measurableOutcomeId);
+  if (!effective) return { ok: false as const, error: "not_found" as const };
+
+  const applied = applyVerificationClear(effective.verification, role);
+  if (!applied.ok) return { ok: false as const, error: applied.error };
+
+  const now = new Date();
+  const verification = verificationColumns(applied.verification);
+  const [saved] = await db
+    .insert(implementationStatements)
+    .values({
+      projectId,
+      measurableOutcomeId,
+      status: effective.status ?? "not_started",
+      statement: effective.statement,
+      gap: effective.gap,
+      risk: effective.risk,
+      currentPercentage: effective.currentPercentage,
+      targetPercentage: effective.targetPercentage,
+      targetImplementationDate: effective.targetImplementationDate,
+      ...verification,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        implementationStatements.projectId,
+        implementationStatements.measurableOutcomeId,
+      ],
+      set: {
+        ...verification,
+        updatedAt: now,
+      },
+    })
+    .returning();
+
+  return { ok: true as const, statement: saved };
 }
